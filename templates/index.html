@@ -30,15 +30,16 @@
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Custom Dual Range Slider Styling */
         .custom-slider { position: absolute; width: 100%; height: 100%; appearance: none; background: transparent; pointer-events: none; outline: none; }
         .custom-slider::-webkit-slider-thumb { pointer-events: auto; appearance: none; width: 18px; height: 18px; background: #4f46e5; border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 2px solid white; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden w-full">
 
+    <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-40 hidden backdrop-blur-sm md:hidden transition-opacity"></div>
 
+    <!-- Responsive Sidebar -->
     <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50 h-full shadow-2xl md:shadow-none">
         <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-100 md:border-none">
             <div class="flex items-center gap-3">
@@ -55,6 +56,12 @@
             <button onclick="switchTab('journal')" id="nav-journal" class="nav-item"><i class="ph ph-list-dashes text-lg"></i> Records</button>
             <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item"><i class="ph ph-trend-up text-lg"></i> Analytics</button>
             <button onclick="switchTab('settings')" id="nav-settings" class="nav-item"><i class="ph ph-gear text-lg"></i> Settings</button>
+            
+            <!-- NEW: Refresh Data Button -->
+            <div class="my-4 border-t border-slate-100"></div>
+            <button onclick="refreshData()" class="nav-item text-slate-400 hover:text-primary transition-colors">
+                <i id="refreshIcon" class="ph ph-arrows-clockwise text-lg"></i> Reload File
+            </button>
         </nav>
         
         <div class="p-4 mt-auto border-t border-slate-100 md:border-none bg-white md:bg-transparent">
@@ -66,6 +73,7 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden w-full">
+        <!-- Responsive Header Stack -->
         <header class="bg-white border-b border-slate-200 z-10 shrink-0 shadow-sm">
             
             <div class="flex items-center justify-between h-16 px-4 md:px-8">
@@ -116,6 +124,7 @@
 
         <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 bg-slate-50/50">
 
+            <!-- DASHBOARD VIEW -->
             <div id="dashboard-view" class="view-section fade-in space-y-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
                     <h2 class="text-lg font-bold text-slate-900">Dashboard</h2>
@@ -156,6 +165,7 @@
                 </div>
             </div>
 
+            <!-- ANALYTICS VIEW -->
             <div id="analytics-view" class="view-section hidden fade-in space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 class="text-lg font-bold text-slate-900">Advanced Trends & Exports</h2>
@@ -183,6 +193,7 @@
                 </div>
             </div>
 
+            <!-- JOURNAL VIEW -->
             <div id="journal-view" class="view-section hidden fade-in">
                 <div class="card p-0 overflow-hidden border border-slate-200">
                     <div class="overflow-x-auto w-full">
@@ -196,6 +207,7 @@
                 </div>
             </div>
 
+            <!-- SETTINGS VIEW -->
             <div id="settings-view" class="view-section hidden fade-in max-w-3xl mx-auto space-y-6">
                 <div class="card border-blue-100 space-y-4">
                     <div class="flex items-center justify-between">
@@ -235,6 +247,7 @@
         </div>
     </main>
 
+    <!-- CHART LINES SETTINGS MODAL -->
     <div id="linesModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6">
@@ -265,6 +278,7 @@
         </div>
     </div>
 
+    <!-- DRIVE VERSIONS MODAL -->
     <div id="driveModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold">Drive Backups</h3><button onclick="document.getElementById('driveModal').classList.add('hidden')" class="text-slate-400 p-2"><i class="ph ph-x text-xl"></i></button></div>
@@ -273,6 +287,7 @@
         </div>
     </div>
 
+    <!-- EDIT MODAL -->
     <div id="editModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-lg font-bold mb-4">Edit Transaction</h3>
@@ -300,6 +315,7 @@
                     return await res.json();
                 } catch(e) { console.error("API Error:", e); return {status: 'error', message: 'Network error'}; }
             },
+            reload_data: () => api._req('reload_data'),  // NEW Endpoint binding
             get_drive_settings: () => api._req('get_drive_settings'),
             save_drive_settings: (e, c, t) => api._req('save_drive_settings', {enabled: e, creds: c, token: t}),
             drive_push: () => api._req('drive_push'),
@@ -321,12 +337,27 @@
             save_chart_lines: (lines) => api._req('save_chart_lines', {lines: lines})
         };
 
-        // --- GLOBAL STATE ---
         let driveConfig = { enabled: false };
         let mainChart, pieChart, balanceChart, analyticsTrendChart, analyticsTagChart;
         let boundsStart = null; 
         let lastAppliedQuery = ""; 
         let userChartLines = { balance: [], main: [], analytics: [] };
+
+        // --- NEW: REFRESH DATA ---
+        async function refreshData() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin'); // Add spinning animation
+            
+            const res = await api.reload_data();
+            if (res.status === 'success') {
+                await executeQuery(); // Refetch stats and redraw charts
+            } else {
+                alert("Failed to reload data: " + res.message);
+            }
+            
+            // Stop spinning after a minimum 500ms to ensure the user sees the feedback
+            setTimeout(() => icon.classList.remove('animate-spin'), 500); 
+        }
 
         // --- MOBILE SIDEBAR ---
         function toggleSidebar() {
@@ -410,7 +441,7 @@
         function switchTab(id) { 
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); document.getElementById(id + '-view').classList.remove('hidden'); 
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav')); document.getElementById('nav-' + id).classList.add('active-nav'); 
-            if(window.innerWidth < 768) toggleSidebar(); // Close sidebar on mobile
+            if(window.innerWidth < 768) toggleSidebar(); 
             if(id === 'settings') loadSettings(); 
         }
 
