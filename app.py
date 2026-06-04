@@ -3,9 +3,8 @@ from backend import ExpenseManager
 import threading
 
 app = Flask(__name__)
-# Initialize backend instance
 em = ExpenseManager("cache.txt")
-lock = threading.Lock() # Ensure thread safety for concurrent web requests
+lock = threading.Lock() 
 
 @app.route('/')
 def index():
@@ -17,6 +16,9 @@ def api_gateway(action):
     
     with lock:
         try:
+            # NEW: Reload data from the file
+            if action == 'reload_data': return jsonify(em.reload_from_file())
+            
             if action == 'get_drive_settings': return jsonify(em.get_drive_settings())
             if action == 'save_drive_settings': return jsonify(em.save_drive_settings(payload.get('enabled'), payload.get('creds'), payload.get('token')))
             if action == 'drive_push': return jsonify(em.drive_push())
@@ -46,5 +48,4 @@ def api_gateway(action):
             return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
-    # Run server accessible on local network (0.0.0.0)
     app.run(host='0.0.0.0', port=5000, debug=True)
