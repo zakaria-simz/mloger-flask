@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financial Journal</title>
+    
+    <script src="{{ url_for('static', filename='assets/tailwind.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/chart.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/phosphor.css') }}">
+
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primary: '#4f46e5', success: '#10b981', danger: '#ef4444' } } } }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer components {
+            .nav-item { @apply w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all; }
+            .active-nav { @apply bg-primary/10 text-primary; }
+            .card { @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6; }
+            .input-field { @apply w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all; }
+            .btn-primary { @apply px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center; }
+            .btn-secondary { @apply px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2; }
+            .btn-outline { @apply px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2; }
+        }
+        
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Dual Range Slider Styling */
+        .custom-slider { position: absolute; width: 100%; height: 100%; appearance: none; background: transparent; pointer-events: none; outline: none; }
+        .custom-slider::-webkit-slider-thumb { pointer-events: auto; appearance: none; width: 18px; height: 18px; background: #4f46e5; border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 2px solid white; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden w-full">
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-40 hidden backdrop-blur-sm md:hidden transition-opacity"></div>
+
+    <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50 h-full shadow-2xl md:shadow-none">
+        <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-100 md:border-none">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/30">
+                    <i class="ph ph-wallet text-xl"></i>
+                </div>
+                <h1 class="font-bold text-xl text-slate-900">mLoger<span class="text-primary">UI</span></h1>
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 p-1"><i class="ph ph-x text-xl"></i></button>
+        </div>
+        
+        <nav class="flex-1 px-4 space-y-1 mt-4 flex flex-col overflow-y-auto pb-4">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active-nav"><i class="ph ph-chart-pie-slice text-lg"></i> Dashboard</button>
+            <button onclick="switchTab('journal')" id="nav-journal" class="nav-item"><i class="ph ph-list-dashes text-lg"></i> Records</button>
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item"><i class="ph ph-trend-up text-lg"></i> Analytics</button>
+            <button onclick="switchTab('settings')" id="nav-settings" class="nav-item"><i class="ph ph-gear text-lg"></i> Settings</button>
+        </nav>
+        
+        <div class="p-4 mt-auto border-t border-slate-100 md:border-none bg-white md:bg-transparent">
+            <div class="bg-slate-900 rounded-xl p-4 text-white shadow-xl shadow-slate-900/10">
+                <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Balance</p>
+                <h3 class="text-2xl font-bold tracking-tight truncate" id="global-balance">...</h3>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden w-full">
+        <header class="bg-white border-b border-slate-200 z-10 shrink-0 shadow-sm">
+            
+            <div class="flex items-center justify-between h-16 px-4 md:px-8">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 text-slate-500 rounded-lg hover:bg-slate-100"><i class="ph ph-list text-2xl"></i></button>
+                    <div class="md:hidden flex items-center gap-2 font-bold text-lg">mLoger<span class="text-primary">UI</span></div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openLinesModal()" class="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><i class="ph ph-faders-horizontal text-2xl md:text-xl"></i></button>
+                    <button onclick="openAddModal()" class="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"><i class="ph ph-plus-circle text-2xl md:text-xl"></i></button>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row items-center gap-3 px-4 md:px-8 pb-4 w-full">
+                <div class="flex w-full lg:w-auto gap-2 shrink-0">
+                    <select id="presetRange" onchange="toggleCustomRange(); executeQuery();" class="flex-1 lg:flex-none bg-slate-50 md:bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer">
+                        <option value="all">All Time</option>
+                        <option value="this_week" selected>This Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="last_month">Last Month</option>
+                        <option value="this_year">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+
+                    <div id="customRangeContainer" class="hidden flex-col flex-1 lg:w-64 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 shadow-inner relative">
+                        <div class="flex justify-between text-[11px] text-slate-500 font-mono mb-1.5">
+                            <span id="sliderLabelStart">...</span><span id="sliderLabelEnd">...</span>
+                        </div>
+                        <div class="relative w-full h-1.5 bg-slate-200 rounded-full flex items-center">
+                            <div id="sliderTrack" class="absolute h-full bg-primary/70 rounded-full"></div>
+                            <input type="range" id="sliderStart" min="0" max="100" value="0" class="custom-slider" oninput="updateSliderUI();" onchange="executeQuery()">
+                            <input type="range" id="sliderEnd" min="0" max="100" value="100" class="custom-slider" oninput="updateSliderUI();" onchange="executeQuery()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex w-full gap-2 relative">
+                    <div class="relative w-full group flex-1">
+                        <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary"></i>
+                        <input type="text" id="queryInput" placeholder="Extra conditions (e.g. amount > 50)" 
+                            class="w-full bg-slate-100 border-none rounded-xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-mono text-slate-600"
+                            onkeydown="if(event.key === 'Enter') executeQuery()">
+                    </div>
+                    <button onclick="executeQuery()" class="btn-primary shrink-0">Apply</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 bg-slate-50/50">
+
+            <div id="dashboard-view" class="view-section fade-in space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                    <h2 class="text-lg font-bold text-slate-900">Dashboard</h2>
+                    <span id="date-range-badge" class="px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-mono text-slate-500 w-max"></span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+                    <div class="card"><h3 class="text-2xl font-bold text-emerald-600 truncate" id="stat-income">+0.00</h3><span class="text-xs uppercase text-slate-400">Filtered Income</span></div>
+                    <div class="card"><h3 class="text-2xl font-bold text-rose-600 truncate" id="stat-expense">-0.00</h3><span class="text-xs uppercase text-slate-400">Filtered Expense</span></div>
+                    <div class="card"><h3 class="text-2xl font-bold text-slate-900 truncate" id="stat-net">0.00</h3><span class="text-xs uppercase text-slate-400">Net Difference</span></div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
+                    <div class="card flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase">Balance History</h3>
+                            <button onclick="downloadChart('balanceChart', 'Balance_History')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
+                        </div>
+                        <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="balanceChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto md:h-80">
+                    <div class="lg:col-span-2 card flex flex-col h-64 md:h-auto">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase">Income vs Expense</h3>
+                            <button onclick="downloadChart('mainChart', 'Income_Expense_Bar')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
+                        </div>
+                        <div class="flex-1 relative w-full bg-white"><canvas id="mainChart"></canvas></div>
+                    </div>
+                    <div class="card flex flex-col h-64 md:h-auto">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase">Top Categories</h3>
+                            <button onclick="downloadChart('pieChart', 'Categories_Pie')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
+                        </div>
+                        <div class="flex-1 relative w-full flex items-center justify-center bg-white"><canvas id="pieChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="analytics-view" class="view-section hidden fade-in space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 class="text-lg font-bold text-slate-900">Advanced Trends & Exports</h2>
+                    <button onclick="downloadExcelCSV()" class="btn-primary flex items-center gap-2"><i class="ph ph-file-csv text-lg"></i> Export to Excel (CSV)</button>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
+                    <div class="card flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Cumulative Spending Trend</h3>
+                            <button onclick="downloadChart('analyticsTrendChart', 'Cumulative_Spending')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button>
+                        </div>
+                        <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTrendChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
+                    <div class="card flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Tag Heat Breakdown</h3>
+                            <button onclick="downloadChart('analyticsTagChart', 'Tag_Heat_Bar')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button>
+                        </div>
+                        <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTagChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="journal-view" class="view-section hidden fade-in">
+                <div class="card p-0 overflow-hidden border border-slate-200">
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-left min-w-[500px]">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
+                                <tr><th class="p-4 w-32 md:w-40">Date</th><th class="p-4 text-right w-24 md:w-32">Daily Net</th><th class="p-4">Transactions</th></tr>
+                            </thead>
+                            <tbody id="journal-table-body" class="text-sm divide-y divide-slate-100 bg-white"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings-view" class="view-section hidden fade-in max-w-3xl mx-auto space-y-6">
+                <div class="card border-blue-100 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-google-logo text-blue-600"></i> Google Drive Sync</h2>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="driveToggle" class="sr-only peer" onchange="toggleDrive()">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div id="driveSettings" class="space-y-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="text-xs font-semibold text-slate-500">Credentials Path</label><input type="text" id="driveCreds" value="credentials.json" class="input-field mt-1"></div>
+                            <div><label class="text-xs font-semibold text-slate-500">Token Path</label><input type="text" id="driveToken" value="token.json" class="input-field mt-1"></div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 mt-2">
+                            <span class="text-xs text-slate-400" id="driveLastSync">Last Synced: Never</span>
+                            <div class="flex gap-2">
+                                <button onclick="drivePush()" class="btn-primary flex items-center gap-2 text-xs flex-1 sm:flex-none"><i class="ph ph-upload-simple"></i> Push Now</button>
+                                <button onclick="openDriveModal()" class="btn-secondary text-xs flex-1 sm:flex-none"><i class="ph ph-clock-counter-clockwise"></i> Versions</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-globe"></i> LAN Sources</h2>
+                        <button onclick="scanLan()" id="scanBtn" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center gap-1"><i class="ph ph-radar"></i> Scan</button>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="text" id="newSourceUrl" placeholder="http://192.168.../api" class="input-field">
+                        <button onclick="addSource()" class="btn-primary">Add</button>
+                    </div>
+                    <ul id="sourcesList" class="space-y-2"></ul>
+                    <button onclick="syncAll()" class="btn-secondary w-full justify-center"><i class="ph ph-arrows-clockwise"></i> Sync All Now</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="linesModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-faders-horizontal text-primary"></i> Chart Limits</h3>
+                <button onclick="document.getElementById('linesModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-2"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto space-y-6 pr-2">
+                <div>
+                    <div class="flex justify-between items-center mb-2"><label class="text-sm font-bold text-slate-700">Balance Lines</label><button onclick="addLine('balance')" class="text-xs text-primary font-medium p-1">+ Add</button></div>
+                    <div id="balanceLinesContainer" class="space-y-2"></div>
+                </div>
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="flex justify-between items-center mb-2"><label class="text-sm font-bold text-slate-700">Income/Expense Lines</label><button onclick="addLine('main')" class="text-xs text-primary font-medium p-1">+ Add</button></div>
+                    <div id="mainLinesContainer" class="space-y-2"></div>
+                </div>
+                <div class="pt-4 border-t border-slate-100">
+                    <div class="flex justify-between items-center mb-2"><label class="text-sm font-bold text-slate-700">Analytics Lines</label><button onclick="addLine('analytics')" class="text-xs text-primary font-medium p-1">+ Add</button></div>
+                    <div id="analyticsLinesContainer" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                <div class="flex-1"></div>
+                <button onclick="document.getElementById('linesModal').classList.add('hidden')" class="text-slate-500 text-sm font-semibold hover:bg-slate-50 px-3 py-2 rounded">Cancel</button>
+                <button onclick="saveChartLines()" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="driveModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold">Drive Backups</h3><button onclick="document.getElementById('driveModal').classList.add('hidden')" class="text-slate-400 p-2"><i class="ph ph-x text-xl"></i></button></div>
+            <div class="flex-1 overflow-y-auto border rounded-xl border-slate-100 mb-4"><div class="overflow-x-auto"><table class="w-full text-left text-sm min-w-[400px]"><thead class="bg-slate-50 text-slate-500 uppercase text-xs sticky top-0"><tr><th class="p-3">Filename</th><th class="p-3 text-right">Action</th></tr></thead><tbody id="driveVersionsList" class="divide-y divide-slate-100"></tbody></table></div></div>
+            <div class="bg-slate-50 p-3 rounded-lg text-xs font-mono text-slate-600 h-32 overflow-y-auto" id="drivePreviewBox">Select a version to preview content here...</div>
+        </div>
+    </div>
+
+    <div id="editModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Edit Transaction</h3>
+            <input type="hidden" id="editIndex">
+            <div class="space-y-4">
+                <div><label class="text-xs font-semibold text-slate-500 uppercase">Date</label><input type="date" id="editDate" class="input-field mt-1 font-mono text-sm text-slate-700"></div>
+                <div><label class="text-xs font-semibold text-slate-500 uppercase">Amount (+ Inc / - Exp)</label><input type="number" step="0.01" id="editAmount" class="input-field font-mono text-lg mt-1"></div>
+                <div><label class="text-xs font-semibold text-slate-500 uppercase">Tags (comma separated)</label><input type="text" id="editTags" class="input-field mt-1" placeholder="e.g. food, cash"></div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="deleteTransaction()" class="text-rose-600 text-sm hover:underline font-semibold">Delete</button>
+                <div class="flex-1"></div>
+                <button onclick="closeModal()" class="text-slate-500 text-sm font-semibold hover:bg-slate-50 px-2 py-1 rounded">Cancel</button>
+                <button onclick="saveEdit()" class="btn-primary">Save changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- FLASK API WRAPPER ---
+        const api = {
+            _req: async (action, payload={}) => {
+                try {
+                    const res = await fetch('/api/' + action, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                    return await res.json();
+                } catch(e) { console.error("API Error:", e); return {status: 'error', message: 'Network error'}; }
+            },
+            get_drive_settings: () => api._req('get_drive_settings'),
+            save_drive_settings: (e, c, t) => api._req('save_drive_settings', {enabled: e, creds: c, token: t}),
+            drive_push: () => api._req('drive_push'),
+            drive_list_versions: () => api._req('drive_list_versions'),
+            drive_preview_version: (fid) => api._req('drive_preview_version', {file_id: fid}),
+            drive_apply_version: (fid) => api._req('drive_apply_version', {file_id: fid}),
+            get_date_bounds: () => api._req('get_date_bounds'),
+            get_dashboard_data: (q) => api._req('get_dashboard_data', {query: q}),
+            export_csv: (q) => api._req('export_csv', {query: q}),
+            add_transaction: (d, a, t) => api._req('add_transaction', {date: d, amount: a, tags: t}),
+            update_transaction: (d, i, a, t) => api._req('update_transaction', {date: d, index: i, amount: a, tags: t}),
+            delete_transaction: (d, i) => api._req('delete_transaction', {date: d, index: i}),
+            get_sources: () => api._req('get_sources'),
+            add_source: (u) => api._req('add_source', {url: u}),
+            remove_source: (u) => api._req('remove_source', {url: u}),
+            scan_network_and_sync: () => api._req('scan_network_and_sync'),
+            sync_all_sources: () => api._req('sync_all_sources'),
+            get_chart_lines: () => api._req('get_chart_lines'),
+            save_chart_lines: (lines) => api._req('save_chart_lines', {lines: lines})
+        };
+
+        // --- GLOBAL STATE ---
+        let driveConfig = { enabled: false };
+        let mainChart, pieChart, balanceChart, analyticsTrendChart, analyticsTagChart;
+        let boundsStart = null; 
+        let lastAppliedQuery = ""; 
+        let userChartLines = { balance: [], main: [], analytics: [] };
+
+        // --- MOBILE SIDEBAR ---
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebar-overlay');
+            sb.classList.toggle('-translate-x-full');
+            ov.classList.toggle('hidden');
+        }
+
+        // --- CUSTOM CHART LINES ---
+        async function loadChartLines() {
+            userChartLines = await api.get_chart_lines();
+            if(!userChartLines.balance) userChartLines.balance = [];
+            if(!userChartLines.main) userChartLines.main = [];
+            if(!userChartLines.analytics) userChartLines.analytics = [];
+        }
+
+        function openLinesModal() {
+            renderLinesConfig('balance', 'balanceLinesContainer');
+            renderLinesConfig('main', 'mainLinesContainer');
+            renderLinesConfig('analytics', 'analyticsLinesContainer');
+            document.getElementById('linesModal').classList.remove('hidden');
+        }
+
+        function renderLinesConfig(chartType, containerId) {
+            const container = document.getElementById(containerId);
+            if (userChartLines[chartType].length === 0) { container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">No lines configured.</p>`; return; }
+            container.innerHTML = userChartLines[chartType].map((line, i) => `
+                <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap sm:flex-nowrap">
+                    <input type="text" placeholder="Line Label" value="${line.label}" onchange="updateLine('${chartType}', ${i}, 'label', this.value)" class="flex-1 w-full sm:w-auto bg-white border border-slate-200 rounded px-3 py-1.5 text-sm focus:ring-1 outline-none">
+                    <input type="number" step="0.01" placeholder="Numeric Value" value="${line.value}" onchange="updateLine('${chartType}', ${i}, 'value', this.value)" class="flex-1 sm:w-24 bg-white border border-slate-200 rounded px-3 py-1.5 text-sm font-mono focus:ring-1 outline-none">
+                    <input type="color" value="${line.color}" onchange="updateLine('${chartType}', ${i}, 'color', this.value)" class="w-10 h-8 rounded cursor-pointer border-0 p-0 bg-transparent shrink-0">
+                    <button onclick="removeLine('${chartType}', ${i})" class="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors shrink-0"><i class="ph ph-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function addLine(chartType) { userChartLines[chartType].push({ label: 'Limit', value: 0, color: '#f59e0b' }); renderLinesConfig(chartType, chartType + 'LinesContainer'); }
+        function updateLine(chartType, index, field, value) { userChartLines[chartType][index][field] = value; }
+        function removeLine(chartType, index) { userChartLines[chartType].splice(index, 1); renderLinesConfig(chartType, chartType + 'LinesContainer'); }
+        async function saveChartLines() { const res = await api.save_chart_lines(userChartLines); if(res.status === 'success') { document.getElementById('linesModal').classList.add('hidden'); executeQuery(); } else { alert("Failed to save: " + res.message); } }
+        function generateHorizontalLineDataset(lineConfig, arrayLength) { return { type: 'line', label: lineConfig.label || 'Limit', data: Array(arrayLength).fill(parseFloat(lineConfig.value)), borderColor: lineConfig.color || '#ef4444', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false, tension: 0 }; }
+
+        // --- DRIVE SYNC ---
+        async function get_drive_config(){ driveConfig = await api.get_drive_settings(); document.getElementById('driveToggle').checked = driveConfig.enabled; document.getElementById('driveSettings').classList.toggle('hidden', !driveConfig.enabled); }
+        async function toggleDrive() { const e = document.getElementById('driveToggle').checked; const c = document.getElementById('driveCreds').value; const t = document.getElementById('driveToken').value; const res = await api.save_drive_settings(e, c, t); if(res.status === 'error') { alert("Drive Error: " + res.message); document.getElementById('driveToggle').checked = false; document.getElementById('driveSettings').classList.add('hidden'); } else { document.getElementById('driveSettings').classList.toggle('hidden', !e); alert("Settings Saved"); } }
+        async function drivePush() { const btn = event.target; const txt = btn.innerText; btn.innerText = "Pushing..."; btn.disabled=true; const res = await api.drive_push(); alert(res.message); if(res.status==='success') document.getElementById('driveLastSync').innerText = "Last Synced: " + res.last_synced; btn.innerText = txt; btn.disabled=false; }
+        async function openDriveModal() { document.getElementById('driveModal').classList.remove('hidden'); document.getElementById('driveVersionsList').innerHTML = '<tr><td colspan="2" class="p-4 text-center">Loading...</td></tr>'; const res = await api.drive_list_versions(); if(res.status==='error') { document.getElementById('driveVersionsList').innerHTML = `<tr><td colspan="2" class="p-4 text-red-500">${res.message}</td></tr>`; return; } document.getElementById('driveVersionsList').innerHTML = res.files.map(f => `<tr class="hover:bg-slate-50"><td class="p-3 font-medium text-xs break-all">${f.name}<br><span class="text-slate-400 font-normal">${new Date(f.createdTime).toLocaleString()}</span></td><td class="p-3 text-right gap-2 flex justify-end"><button onclick="previewDrive('${f.id}')" class="text-blue-600 font-medium">Prev</button> <button onclick="applyDrive('${f.id}')" class="text-emerald-600 font-medium border border-emerald-200 px-2 rounded">Use</button></td></tr>`).join(''); }
+        async function previewDrive(fid) { document.getElementById('drivePreviewBox').innerText = "Downloading..."; const res = await api.drive_preview_version(fid); if(res.status === 'success') document.getElementById('drivePreviewBox').innerText = res.preview; else alert(res.message); }
+        async function applyDrive(fid) { if(!confirm("Overwrite local data?")) return; const res = await api.drive_apply_version(fid); alert(res.message); document.getElementById('driveModal').classList.add('hidden'); executeQuery(); }
+
+        // --- CUSTOM SLIDER ---
+        async function toggleCustomRange() {
+            const isCustom = document.getElementById('presetRange').value === 'custom';
+            const container = document.getElementById('customRangeContainer');
+            if (isCustom) {
+                container.classList.remove('hidden'); container.classList.add('flex');
+                const bounds = await api.get_date_bounds();
+                const parts = bounds.start.split('/'); boundsStart = new Date(parts[2], parts[1]-1, parts[0]);
+                const maxDays = bounds.total_days > 0 ? bounds.total_days : 1;
+                document.getElementById('sliderStart').max = maxDays; document.getElementById('sliderEnd').max = maxDays;
+                if(document.getElementById('sliderStart').value == 0 && document.getElementById('sliderEnd').value == 100) document.getElementById('sliderEnd').value = maxDays;
+                updateSliderUI();
+            } else { container.classList.add('hidden'); container.classList.remove('flex'); }
+        }
+
+        function updateSliderUI() {
+            const sStart = document.getElementById('sliderStart'), sEnd = document.getElementById('sliderEnd');
+            let val1 = parseInt(sStart.value), val2 = parseInt(sEnd.value);
+            if (val1 > val2) { let tmp = val1; val1 = val2; val2 = tmp; sStart.value = val1; sEnd.value = val2; }
+            const max = parseInt(sStart.max);
+            document.getElementById('sliderTrack').style.left = ((val1/max)*100) + '%';
+            document.getElementById('sliderTrack').style.width = (((val2-val1)/max)*100) + '%';
+            if(boundsStart) {
+                const d1 = new Date(boundsStart); d1.setDate(d1.getDate() + val1); const d2 = new Date(boundsStart); d2.setDate(d2.getDate() + val2);
+                document.getElementById('sliderLabelStart').innerText = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')}/${d1.getFullYear()}`;
+                document.getElementById('sliderLabelEnd').innerText = `${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')}/${d2.getFullYear()}`;
+            }
+        }
+
+        function switchTab(id) { 
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); document.getElementById(id + '-view').classList.remove('hidden'); 
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav')); document.getElementById('nav-' + id).classList.add('active-nav'); 
+            if(window.innerWidth < 768) toggleSidebar(); // Close sidebar on mobile
+            if(id === 'settings') loadSettings(); 
+        }
+
+        function extractQuery() {
+            const rangeVal = document.getElementById('presetRange').value; const userText = document.getElementById('queryInput').value.trim(); const now = new Date(); const fmt = (d) => { const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); return `${dd}/${mm}/${d.getFullYear()}`; };
+            let dateQuery = ""; let badgeText = "All Time";
+            if (rangeVal === 'custom') { const lblStart = document.getElementById('sliderLabelStart').innerText; const lblEnd = document.getElementById('sliderLabelEnd').innerText; dateQuery = `date >= ${lblStart} and date <= ${lblEnd}`; badgeText = `${lblStart} - ${lblEnd}`; }
+            else if (rangeVal === 'this_week') { const dayOfWeek = now.getDay(); const numDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; const start = new Date(now); start.setDate(now.getDate() - numDay); const end = new Date(start); end.setDate(start.getDate() + 6); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "Current Week"; }
+            else if (rangeVal === 'this_month') { const start = new Date(now.getFullYear(), now.getMonth(), 1); const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "This Month"; }
+            else if (rangeVal === 'last_month') { const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); const end = new Date(now.getFullYear(), now.getMonth(), 0); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "Last Month"; }
+            else if (rangeVal === 'this_year') { const start = new Date(now.getFullYear(), 0, 1); const end = new Date(now.getFullYear(), 11, 31); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "This Year"; }
+            let finalQuery = ""; if (dateQuery && userText) finalQuery = `(${dateQuery}) and (${userText})`; else if (dateQuery) finalQuery = dateQuery; else if (userText) finalQuery = userText;
+            return { query: finalQuery, badge: badgeText };
+        }
+
+        async function executeQuery() {
+            const extraction = extractQuery(); lastAppliedQuery = extraction.query; document.getElementById('date-range-badge').innerText = extraction.badge;
+            const data = await api.get_dashboard_data(lastAppliedQuery);
+            if(data.status !== 'error') {
+                document.getElementById('global-balance').innerText = data.global_balance.toFixed(2);
+                updateStats(data.stats); updateTable(data.records); updateCharts(data.records, data.stats);
+            }
+        }
+
+        // --- EXPORTS ---
+        async function downloadExcelCSV() { const res = await api.export_csv(lastAppliedQuery); if (res.status === 'success') { const blob = new Blob(["\uFEFF" + res.csv_data], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `mLoger_Export_${new Date().toISOString().split('T')[0]}.csv`); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); } else { alert("Export Failed: " + res.message); } }
+        function downloadChart(chartCanvasId, filename) { const canvas = document.getElementById(chartCanvasId); const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const ctx = tempCanvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); ctx.drawImage(canvas, 0, 0); const link = document.createElement('a'); link.download = `${filename}_${new Date().toISOString().split('T')[0]}.png`; link.href = tempCanvas.toDataURL('image/png', 1.0); link.click(); }
+
+        // --- UI DRAWING ---
+        function updateStats(stats) { document.getElementById('stat-income').innerText = "+" + stats.total_income.toFixed(2); document.getElementById('stat-expense').innerText = stats.total_expense.toFixed(2); document.getElementById('stat-net').innerText = stats.net_savings.toFixed(2); }
+        function updateTable(records) { const tbody = document.getElementById('journal-table-body'); tbody.innerHTML = ''; records.forEach(rec => { let transHtml = rec.transactions.map((t, idx) => { const color = t.amount > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'; return `<button onclick="openEditModal('${rec.date}', ${idx}, ${t.amount}, '${t.tags.join(', ')}')" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-transparent hover:border-slate-300 ${color} mr-1 mb-1 shadow-sm transition-all">${t.amount} ${t.tags.length ? '('+t.tags.join(',')+')' : ''}</button>`; }).join(''); tbody.innerHTML += `<tr class="hover:bg-slate-50 transition-colors"><td class="p-4 font-medium whitespace-nowrap">${rec.date} <span class="text-[10px] text-slate-400 uppercase">${rec.day_name}</span></td><td class="p-4 text-right font-bold ${rec.net_change >=0?'text-emerald-600':'text-rose-600'}">${rec.net_change.toFixed(2)}</td><td class="p-4 min-w-[200px]">${transHtml}</td></tr>`; }); }
+
+        function updateCharts(records, stats) {
+            const r = [...records].reverse(); Chart.defaults.font.family = "'Inter', sans-serif";
+            const balanceDatasets = [{ label: 'Running Balance', data: r.map(x => x.historical_balance), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.15)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: window.innerWidth < 768 ? 1 : 3 }];
+            const mainDatasets = [{label:'Inc', data: r.map(x => x.income), backgroundColor:'#10b981', borderRadius: 4}, {label:'Exp', data: r.map(x => Math.abs(x.expense)), backgroundColor:'#ef4444', borderRadius: 4}];
+            userChartLines.balance.forEach(line => balanceDatasets.push(generateHorizontalLineDataset(line, r.length)));
+            userChartLines.main.forEach(line => mainDatasets.push(generateHorizontalLineDataset(line, r.length)));
+
+            if(balanceChart) balanceChart.destroy();
+            balanceChart = new Chart(document.getElementById('balanceChart'), { type: 'line', data: { labels: r.map(x => x.date.substring(0,5)), datasets: balanceDatasets }, options: { responsive:true, maintainAspectRatio:false, scales: { y: { suggestedMin: 0, suggestedMax: 0 } }, plugins: {legend: {display: window.innerWidth > 768}} } });
+
+            if(mainChart) mainChart.destroy();
+            mainChart = new Chart(document.getElementById('mainChart'), { type: 'bar', data: { labels: r.map(x => x.date.substring(0,5)), datasets: mainDatasets }, options: { responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true}, y:{stacked:false}}, plugins: {legend: {position: 'top'}} } });
+            
+            if(pieChart) pieChart.destroy();
+            const top5Stats = Object.fromEntries(Object.entries(stats.tag_breakdown).slice(0,5));
+            pieChart = new Chart(document.getElementById('pieChart'), { type: 'doughnut', data: { labels: Object.keys(top5Stats), datasets: [{ data: Object.values(top5Stats), backgroundColor:['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#64748b'] }] }, options: { responsive:true, maintainAspectRatio:false, cutout:'70%', plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right' } } } });
+
+            let cumInc = 0; let cumExp = 0;
+            const analyticsDatasets = [ { label: 'Cumulative Income', data: r.map(x => { cumInc += x.income; return cumInc; }), borderColor: '#10b981', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false }, { label: 'Cumulative Expense', data: r.map(x => { cumExp += Math.abs(x.expense); return cumExp; }), borderColor: '#ef4444', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false } ];
+            userChartLines.analytics.forEach(line => analyticsDatasets.push(generateHorizontalLineDataset(line, r.length)));
+
+            if(analyticsTrendChart) analyticsTrendChart.destroy();
+            analyticsTrendChart = new Chart(document.getElementById('analyticsTrendChart'), { type: 'line', data: { labels: r.map(x => x.date.substring(0,5)), datasets: analyticsDatasets }, options: { responsive:true, maintainAspectRatio:false, interaction: { mode: 'index', intersect: false } } });
+
+            if(analyticsTagChart) analyticsTagChart.destroy();
+            analyticsTagChart = new Chart(document.getElementById('analyticsTagChart'), { type: 'bar', data: { labels: Object.keys(stats.tag_breakdown), datasets: [{ label: 'Spent', data: Object.values(stats.tag_breakdown), backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y' } });
+        }
+
+        // --- DATA MODALS ---
+        function openEditModal(d_str, i, a, t) { if(d_str){const [dd, mm, yy] = d_str.split('/'); document.getElementById('editDate').value = `${yy}-${mm}-${dd}`;} document.getElementById('editIndex').value = i; document.getElementById('editAmount').value = a; document.getElementById('editTags').value = t; document.getElementById('editModal').classList.remove('hidden'); }
+        function openAddModal() { const now = new Date(); document.getElementById('editDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; document.getElementById('editIndex').value = -1; document.getElementById('editAmount').value = ''; document.getElementById('editTags').value = ''; document.getElementById('editModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('editModal').classList.add('hidden'); }
+        async function saveEdit() { const dRaw = document.getElementById('editDate').value; if(!dRaw) return alert("Please specify a date."); const [yy, mm, dd] = dRaw.split('-'); const res = await (parseInt(document.getElementById('editIndex').value) === -1 ? api.add_transaction(`${dd}/${mm}/${yy}`, parseFloat(document.getElementById('editAmount').value), document.getElementById('editTags').value.split(',').map(x=>x.trim()).filter(x=>x)) : api.update_transaction(`${dd}/${mm}/${yy}`, parseInt(document.getElementById('editIndex').value), parseFloat(document.getElementById('editAmount').value), document.getElementById('editTags').value.split(',').map(x=>x.trim()).filter(x=>x))); if(res.status==='success') { closeModal(); executeQuery(); } else alert(res.message); }
+        async function deleteTransaction() { if(!confirm("Delete?")) return; const dRaw = document.getElementById('editDate').value; const [yy, mm, dd] = dRaw.split('-'); const res = await api.delete_transaction(`${dd}/${mm}/${yy}`, parseInt(document.getElementById('editIndex').value)); if(res.status==='success') { closeModal(); executeQuery(); } else alert(res.message); }
+
+        // --- SETTINGS ---
+        async function loadSettings() { const sources = await api.get_sources(); document.getElementById('sourcesList').innerHTML = sources.map(s => `<li class="flex justify-between bg-slate-50 p-2 rounded text-xs border border-slate-100"><span>${s}</span><button onclick="removeSource('${s}')" class="text-rose-500"><i class="ph ph-trash"></i></button></li>`).join(''); }
+        async function scanLan() { const btn=document.getElementById('scanBtn'); btn.innerHTML='<i class="ph ph-spinner animate-spin"></i>'; const res = await api.scan_network_and_sync(); alert(res.message); loadSettings(); executeQuery(); btn.innerHTML='<i class="ph ph-radar"></i> Scan'; }
+        async function addSource() { await api.add_source(document.getElementById('newSourceUrl').value); loadSettings(); }
+        async function removeSource(u) { await api.remove_source(u); loadSettings(); }
+        async function syncAll() { const r = await api.sync_all_sources(); alert(r.join('\n')); executeQuery(); }
+
+        document.addEventListener('DOMContentLoaded', async function() { 
+            await loadChartLines(); 
+            get_drive_config(); 
+            executeQuery(); 
+        });
+    </script>
+</body>
+</html>
