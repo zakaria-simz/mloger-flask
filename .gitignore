@@ -1,0 +1,10 @@
+cahe*
+cache.txt
+venv/*
+converted*
+__pycache__
+backups
+token*
+credentials*
+ziped/
+*.bat
