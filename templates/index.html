@@ -9,6 +9,9 @@
     <script src="{{ url_for('static', filename='assets/chart.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/phosphor.css') }}">
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
     <script>
         tailwind.config = { theme: { extend: { colors: { primary: '#4f46e5', success: '#10b981', danger: '#ef4444' } } } }
     </script>
@@ -200,6 +203,17 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="card space-y-4">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-chart-line-up text-primary"></i> Chart Preferences</h2>
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <span class="text-sm font-semibold text-slate-700">Include Empty Days (Flatten Charts)</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="fillDaysToggle" class="sr-only peer" onchange="toggleFillDays()">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -215,7 +229,7 @@
                 <div class="space-y-4">
                     <div>
                         <label class="text-xs font-semibold text-slate-500 uppercase">Date</label>
-                        <input type="date" id="editDate" class="input-field mt-1 font-mono text-sm text-slate-700">
+                        <input type="text" id="editDate" class="input-field mt-1 font-mono text-sm text-slate-700 bg-white cursor-pointer" placeholder="DD/MM/YYYY">
                     </div>
                     <div>
                         <label class="text-xs font-semibold text-slate-500 uppercase" id="lbl-amount">Amount (+ Inc / - Exp)</label>
@@ -289,7 +303,6 @@
     </div>
 
     <script>
-        // --- FLASK API WRAPPER ---
         const api = {
             _req: async (action, payload={}) => {
                 try {
@@ -307,14 +320,16 @@
             get_accounts_summary: () => api._req('get_accounts_summary'),
             create_account: (n, t) => api._req('create_account', {name: n, type: t}),
             add_transfer: (d, f, t, a, tags) => api._req('add_transfer', {date: d, from_acc: f, to_acc: t, amount: a, tags: tags}),
-            get_dashboard_data: (id, q) => api._req('get_dashboard_data', {acc_id: id, query: q}),
+            get_dashboard_data: (id, q, start, end) => api._req('get_dashboard_data', {acc_id: id, query: q, start_bound: start, end_bound: end}),
             get_date_bounds: (id) => api._req('get_date_bounds', {acc_id: id}),
-            export_csv: (id, q) => api._req('export_csv', {acc_id: id, query: q}),
+            export_csv: (id, q, start, end) => api._req('export_csv', {acc_id: id, query: q, start_bound: start, end_bound: end}),
             add_transaction: (id, d, a, t) => api._req('add_transaction', {acc_id: id, date: d, amount: a, tags: t}),
             update_transaction: (id, d, idx, a, t) => api._req('update_transaction', {acc_id: id, date: d, index: idx, amount: a, tags: t}),
             delete_transaction: (id, d, idx) => api._req('delete_transaction', {acc_id: id, date: d, index: idx}),
             get_chart_lines: () => api._req('get_chart_lines'),
             save_chart_lines: (l) => api._req('save_chart_lines', {lines: l}),
+            get_app_settings: () => api._req('get_app_settings'),
+            toggle_empty_days: () => api._req('toggle_empty_days'),
             reload_data: () => api._req('reload_data'),
             get_drive_settings: () => api._req('get_drive_settings'),
             save_drive_settings: (e, c, t) => api._req('save_drive_settings', {enabled: e, creds: c, token: t}),
@@ -324,7 +339,6 @@
             drive_apply_version: (fid) => api._req('drive_apply_version', {file_id: fid})
         };
 
-        // --- GLOBAL STATE ---
         let activeAccountId = "main";
         let allAccounts = {}; 
         let mainChart, pieChart, balanceChart, analyticsTrendChart, analyticsTagChart;
@@ -333,7 +347,6 @@
         let userChartLines = { balance: [], main: [], analytics: [] };
         let modalMode = 'standard';
 
-        // --- UTILS ---
         function toggleSidebar() { 
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sidebar-overlay');
@@ -348,12 +361,24 @@
             if (el) {
                 el.classList.remove('hidden');
                 setTimeout(() => el.classList.add('hidden'), 5000);
-            } else {
-                alert("Error: " + msg); // Fallback if toast is missing
             }
         }
 
-        // --- ACCOUNT MANAGEMENT ---
+        async function loadAppSettings() {
+            const res = await api.get_app_settings();
+            if (res.status === 'success') {
+                const fdToggle = document.getElementById('fillDaysToggle');
+                if (fdToggle) fdToggle.checked = res.fill_empty_days;
+            }
+        }
+
+        async function toggleFillDays() {
+            const res = await api.toggle_empty_days();
+            if (res.status === 'success') {
+                executeQuery();
+            }
+        }
+
         async function loadAccounts() {
             const res = await api.get_accounts_summary();
             if(res.status !== 'success') return showError(res.message || "Failed to load accounts");
@@ -363,9 +388,7 @@
                 activeAccountId = Object.keys(allAccounts)[0] || "main";
             }
 
-            let wHtml = '';
-            let pHtml = '';
-            let selectOptions = '';
+            let wHtml = '', pHtml = '', selectOptions = '';
             
             for(let id in allAccounts) {
                 const acc = allAccounts[id];
@@ -418,15 +441,12 @@
         async function reloadData(btn) { 
             const icon = btn ? btn.querySelector('i') : null; 
             if (icon) icon.classList.add('animate-spin'); 
-            
             await api.reload_data(); 
             await loadAccounts(); 
             await executeQuery(); 
-            
             if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 500); 
         }
 
-        // --- DASHBOARD DATA EXTRACTION ---
         function extractQuery() { 
             const rangeEl = document.getElementById('presetRange');
             const inputEl = document.getElementById('queryInput');
@@ -443,6 +463,8 @@
             
             let dateQuery = ""; 
             let badgeText = "All Time"; 
+            let explicitStart = null;
+            let explicitEnd = null;
             
             if (rangeVal === 'custom') { 
                 const lblStart = document.getElementById('sliderLabelStart');
@@ -453,6 +475,8 @@
                 if(startText !== '...' && endText !== '...') { 
                     dateQuery = `date >= ${startText} and date <= ${endText}`; 
                     badgeText = `${startText} - ${endText}`; 
+                    explicitStart = startText;
+                    explicitEnd = endText;
                 } 
             } else if (rangeVal === 'this_week') { 
                 const dayOfWeek = now.getDay(); 
@@ -461,21 +485,29 @@
                 const end = new Date(start); end.setDate(start.getDate() + 6); 
                 dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
                 badgeText = "Current Week"; 
+                explicitStart = fmt(start);
+                explicitEnd = fmt(end);
             } else if (rangeVal === 'this_month') { 
                 const start = new Date(now.getFullYear(), now.getMonth(), 1); 
                 const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); 
                 dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
                 badgeText = "This Month"; 
+                explicitStart = fmt(start);
+                explicitEnd = fmt(end);
             } else if (rangeVal === 'last_month') { 
                 const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
                 const end = new Date(now.getFullYear(), now.getMonth(), 0); 
                 dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
                 badgeText = "Last Month"; 
+                explicitStart = fmt(start);
+                explicitEnd = fmt(end);
             } else if (rangeVal === 'this_year') { 
                 const start = new Date(now.getFullYear(), 0, 1); 
                 const end = new Date(now.getFullYear(), 11, 31); 
                 dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
                 badgeText = "This Year"; 
+                explicitStart = fmt(start);
+                explicitEnd = fmt(end);
             } 
             
             let finalQuery = ""; 
@@ -483,11 +515,20 @@
             else if (dateQuery) finalQuery = dateQuery; 
             else if (userText) finalQuery = userText; 
             
-            return { query: finalQuery, badge: badgeText }; 
+            return { query: finalQuery, badge: badgeText, start: explicitStart, end: explicitEnd }; 
         }
 
-        // --- CORE EXECUTION (BULLETPROOFED) ---
         async function executeQuery() {
+            const btnSpinner = document.querySelector('button[onclick="executeQuery()"]');
+            let spinnerIcon = null;
+            if (btnSpinner) {
+                if (!btnSpinner.querySelector('.ph-spinner')) {
+                    btnSpinner.innerHTML += `<i class="ph ph-spinner animate-spin text-white"></i>`;
+                }
+                spinnerIcon = btnSpinner.querySelector('.ph-spinner');
+                spinnerIcon.classList.remove('hidden');
+            }
+
             try {
                 const extraction = extractQuery(); 
                 lastAppliedQuery = extraction.query; 
@@ -496,8 +537,6 @@
                 if (badgeEl) badgeEl.innerText = extraction.badge;
                 
                 const accInfo = allAccounts[activeAccountId];
-                
-                // Update UI Headers
                 const headerAccName = document.getElementById('header-acc-name');
                 if (headerAccName) headerAccName.innerText = accInfo ? accInfo.name : "Loading...";
                 
@@ -507,17 +546,13 @@
                 const statNetLabel = document.getElementById('stat-net-label');
                 if (statNetLabel) statNetLabel.innerText = accInfo && accInfo.type === 'person' ? "Net Debt/Credit" : "Net Savings";
 
-                // Fetch data for the active account
-                const data = await api.get_dashboard_data(activeAccountId, lastAppliedQuery);
+                const data = await api.get_dashboard_data(activeAccountId, lastAppliedQuery, extraction.start, extraction.end);
                 
-                if(data.status === 'success') {
-                    // Update the balance display for the selected account
-                    const balEl = document.getElementById('global-balance');
-                    if (balEl) {
-                        // If it's a person account, we can label the balance as Debt/Credit
-                        balEl.innerText = data.global_balance.toFixed(2);
+                if(data.status !== 'error') {
+                    if(data.global_balance !== undefined) {
+                        const balEl = document.getElementById('global-balance');
+                        if (balEl) balEl.innerText = data.global_balance.toFixed(2);
                     }
-                    
                     if(data.stats) updateStats(data.stats); 
                     if(data.records) { 
                         updateTable(data.records); 
@@ -528,24 +563,22 @@
                 }
             } catch (err) {
                 console.error(err);
-                showError("An error occurred while loading data.");
+                showError("A client-side execution error occurred.");
+            } finally {
+                if (spinnerIcon) spinnerIcon.classList.add('hidden');
             }
         }
 
         function updateStats(stats) { 
             if(!stats) return; 
-            
             const incEl = document.getElementById('stat-income');
             if (incEl) incEl.innerText = "+" + (stats.total_income||0).toFixed(2); 
-            
             const expEl = document.getElementById('stat-expense');
             if (expEl) expEl.innerText = (stats.total_expense||0).toFixed(2); 
-            
             const netEl = document.getElementById('stat-net');
             if (netEl) netEl.innerText = (stats.net_savings||0).toFixed(2); 
         }
 
-        // --- MODALS ---
         function switchModalTab(tab) { 
             modalMode = tab; 
             const isT = tab === 'transfer'; 
@@ -573,10 +606,10 @@
             const tabT = document.getElementById('tab-transfer');
             if (tabT) tabT.classList.add('hidden'); 
             
-            if(d_str){
-                const [dd, mm, yy] = d_str.split('/'); 
-                const dEl = document.getElementById('editDate');
-                if (dEl) dEl.value = `${yy}-${mm}-${dd}`;
+            // Populate Flatpickr
+            const dEl = document.getElementById('editDate');
+            if(d_str && dEl && dEl._flatpickr){
+                dEl._flatpickr.setDate(d_str, false, "d/m/Y");
             } 
             
             const idxEl = document.getElementById('editIndex');
@@ -595,9 +628,11 @@
             if (tabT) tabT.classList.remove('hidden'); 
             switchModalTab('standard'); 
             
-            const now = new Date(); 
+            // Set Flatpickr to today
             const dEl = document.getElementById('editDate');
-            if(dEl) dEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; 
+            if(dEl && dEl._flatpickr) {
+                dEl._flatpickr.setDate(new Date());
+            } 
             
             const idxEl = document.getElementById('editIndex');
             const amtEl = document.getElementById('editAmount');
@@ -619,11 +654,8 @@
 
         async function saveEdit() { 
             const dEl = document.getElementById('editDate');
-            const dRaw = dEl ? dEl.value : null;
-            if(!dRaw) return alert("Date required."); 
-            
-            const [yy, mm, dd] = dRaw.split('-'); 
-            const d = `${dd}/${mm}/${yy}`; 
+            const d = dEl ? dEl.value : null;
+            if(!d || d.trim() === "") return alert("Date required."); 
             
             const amtEl = document.getElementById('editAmount');
             const a = amtEl ? parseFloat(amtEl.value) : 0; 
@@ -664,14 +696,13 @@
             if(!confirm("Delete this transaction?")) return; 
             
             const dEl = document.getElementById('editDate');
-            if (!dEl) return;
-            const dRaw = dEl.value; 
-            const [yy, mm, dd] = dRaw.split('-'); 
+            if (!dEl || !dEl.value) return;
+            const d = dEl.value; // Already in DD/MM/YYYY format thanks to flatpickr
             
             const idxEl = document.getElementById('editIndex');
             const i = idxEl ? parseInt(idxEl.value) : -1;
 
-            const res = await api.delete_transaction(activeAccountId, `${dd}/${mm}/${yy}`, i); 
+            const res = await api.delete_transaction(activeAccountId, d, i); 
             if(res.status==='success') { 
                 closeModal(); 
                 await loadAccounts(); 
@@ -681,7 +712,6 @@
             }
         }
 
-        // --- CUSTOM DATE SLIDER ---
         async function toggleCustomRange() { 
             const pEl = document.getElementById('presetRange');
             const isCustom = pEl && pEl.value === 'custom'; 
@@ -748,7 +778,6 @@
             } 
         }
 
-        // --- DRAWING FUNCTIONS ---
         function updateTable(records) { 
             if(!records) return; 
             const tbody = document.getElementById('journal-table-body'); 
@@ -774,7 +803,6 @@
             }); 
         }
 
-        // --- CHART LIMIT LINES ---
         async function loadChartLines() { 
             userChartLines = await api.get_chart_lines(); 
             if(!userChartLines.balance) userChartLines.balance = []; 
@@ -839,7 +867,7 @@
 
         function updateCharts(records, stats) {
             const r = [...records].reverse(); 
-            if (typeof Chart === 'undefined') return; // Safety check if chart.js failed to load
+            if (typeof Chart === 'undefined') return; 
             
             Chart.defaults.font.family = "'Inter', sans-serif";
             
@@ -917,9 +945,9 @@
             }
         }
 
-        // --- MISC EXPORTS / DRIVE / UI ---
         async function downloadExcelCSV() { 
-            const res = await api.export_csv(activeAccountId, lastAppliedQuery); 
+            const ext = extractQuery();
+            const res = await api.export_csv(activeAccountId, ext.query, ext.start, ext.end); 
             if (res.status === 'success') { 
                 const blob = new Blob(["\uFEFF" + res.csv_data], { type: 'text/csv;charset=utf-8;' }); 
                 const link = document.createElement("a"); 
@@ -960,14 +988,18 @@
             if(nav) nav.classList.add('active-nav'); 
             
             if(window.innerWidth < 768) toggleSidebar(); 
+            
+            if(id === 'settings') {
+                loadAppSettings();
+            }
         }
 
         async function get_drive_config(){ 
-            driveConfig = await api.get_drive_settings(); 
+            const cfg = await api.get_drive_settings(); 
             const dtg = document.getElementById('driveToggle');
             const ds = document.getElementById('driveSettings');
-            if (dtg) dtg.checked = driveConfig.enabled; 
-            if (ds) ds.classList.toggle('hidden', !driveConfig.enabled); 
+            if (dtg) dtg.checked = cfg.enabled; 
+            if (ds) ds.classList.toggle('hidden', !cfg.enabled); 
         }
 
         async function toggleDrive() { 
@@ -1047,13 +1079,17 @@
             const dm = document.getElementById('driveModal');
             if (dm) dm.classList.add('hidden'); 
             
-            // Re-render
             await loadAccounts(); 
             await executeQuery(); 
         }
 
-        // --- INIT ---
         document.addEventListener('DOMContentLoaded', async function() { 
+            // Initialize Flatpickr for DD/MM/YYYY formatting
+            flatpickr("#editDate", {
+                dateFormat: "d/m/Y",
+                allowInput: true
+            });
+
             await loadChartLines(); 
             get_drive_config(); 
             await loadAccounts();

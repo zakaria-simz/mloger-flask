@@ -19,27 +19,28 @@ def api_gateway(action):
         try:
             acc_id = payload.get('acc_id')
             
-            # Multi-Account endpoints
             if action == 'get_accounts_summary': return jsonify(em.get_accounts_summary())
             if action == 'create_account': return jsonify(em.create_account(payload.get('name'), payload.get('type')))
             if action == 'add_transfer': return jsonify(em.add_transfer(payload.get('date'), payload.get('from_acc'), payload.get('to_acc'), payload.get('amount'), payload.get('tags')))
             
-            # Data retrieval
             if action == 'get_date_bounds': return jsonify(em.get_date_bounds(acc_id))
-            if action == 'get_dashboard_data': return jsonify(em.get_dashboard_data(acc_id, payload.get('query', '')))
-            if action == 'export_csv': return jsonify(em.export_csv(acc_id, payload.get('query', '')))
             
-            # Transactions
+            # Pass the explicit boundaries to restrict the fill_empty loop
+            if action == 'get_dashboard_data': 
+                return jsonify(em.get_dashboard_data(acc_id, payload.get('query', ''), payload.get('start_bound'), payload.get('end_bound')))
+            if action == 'export_csv': 
+                return jsonify(em.export_csv(acc_id, payload.get('query', ''), payload.get('start_bound'), payload.get('end_bound')))
+            
             if action == 'add_transaction': return jsonify(em.add_transaction(acc_id, payload.get('date'), payload.get('amount'), payload.get('tags')))
             if action == 'update_transaction': return jsonify(em.update_transaction(acc_id, payload.get('date'), payload.get('index'), payload.get('amount'), payload.get('tags')))
             if action == 'delete_transaction': return jsonify(em.delete_transaction(acc_id, payload.get('date'), payload.get('index')))
             
-            # Chart Lines & Settings
             if action == 'get_chart_lines': return jsonify(em.get_chart_lines())
             if action == 'save_chart_lines': return jsonify(em.save_chart_lines(payload.get('lines')))
+            if action == 'get_app_settings': return jsonify({"status": "success", "fill_empty_days": em.settings.get("fill_empty_days", False)})
+            if action == 'toggle_empty_days': return jsonify(em.toggle_empty_days())
             if action == 'reload_data': return jsonify(em.reload_all())
             
-            # Drive Sync
             if action == 'get_drive_settings': return jsonify(em.get_drive_settings())
             if action == 'save_drive_settings': return jsonify(em.save_drive_settings(payload.get('enabled'), payload.get('creds'), payload.get('token')))
             if action == 'drive_push': return jsonify(em.drive_push())
@@ -49,7 +50,6 @@ def api_gateway(action):
             
             return jsonify({"status": "error", "message": "Unknown action"}), 400
         except Exception as e:
-            # Print exact error to server console for debugging if needed
             traceback.print_exc()
             return jsonify({"status": "error", "message": str(e)}), 500
 

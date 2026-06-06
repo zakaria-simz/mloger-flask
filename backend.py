@@ -36,7 +36,6 @@ class Transaction:
         if self.tags: return f"{base}({', '.join(self.tags)})"
         return base
 
-# --- NEW HELPER: Identifies if a transaction is a transfer/loan ---
 def is_transfer_transaction(t: Transaction) -> bool:
     for tag in t.tags:
         tl = tag.lower().strip()
@@ -52,17 +51,14 @@ class DailyRecord:
 
     @property
     def total_change(self) -> float: 
-        # Total change ALWAYS includes everything so balances stay accurate
         return sum(t.amount for t in self.transactions)
         
     @property
     def income(self) -> float: 
-        # Income chart EXCLUDES transfers
         return sum(t.amount for t in self.transactions if t.amount > 0 and not is_transfer_transaction(t))
         
     @property
     def expense(self) -> float: 
-        # Expense chart EXCLUDES transfers
         return sum(t.amount for t in self.transactions if t.amount < 0 and not is_transfer_transaction(t))
 
     def to_dict(self):
@@ -181,7 +177,7 @@ class ExpenseManager:
         if self.settings.get('drive_enabled'): self._init_drive()
 
     def _load_settings(self):
-        settings = {"accounts": {}, "chart_lines": {"balance": [], "main": [], "analytics": []}, "drive_enabled": False}
+        settings = {"accounts": {}, "chart_lines": {"balance": [], "main": [], "analytics": []}, "drive_enabled": False, "fill_empty_days": False}
         if os.path.exists(SETTINGS_FILE):
             try: 
                 with open(SETTINGS_FILE, 'r') as f: 
@@ -229,6 +225,11 @@ class ExpenseManager:
                 f.write(rec.to_file_line() + "\n")
         return {"status": "success"}
 
+    def toggle_empty_days(self):
+        self.settings["fill_empty_days"] = not self.settings.get("fill_empty_days", False)
+        self._save_settings()
+        return {"status": "success", "fill_empty_days": self.settings["fill_empty_days"]}
+
     def get_accounts_summary(self):
         summary = {}
         for acc_id, acc_info in self.settings["accounts"].items():
@@ -259,8 +260,8 @@ class ExpenseManager:
             from_name = self.settings['accounts'][from_acc]['name']
             to_name = self.settings['accounts'][to_acc]['name']
             
-            # Inject a "Transfer" tag automatically if missing so analytics ignore it later
-            transfer_tags = [t for t in tags if t.lower() != 'transfer'] + ["Transfer"]
+            transfer_id = str(int(dt.now().timestamp()))
+            transfer_tags = [t for t in tags if t.lower() != 'transfer'] + ["Transfer", f"TID:{transfer_id}"]
             
             self.add_transaction(from_acc, date_str, -amt, transfer_tags + [f"To {to_name}"])
             self.add_transaction(to_acc, date_str, amt, transfer_tags + [f"From {from_name}"])
@@ -394,11 +395,25 @@ class ExpenseManager:
         try:
             if acc_id not in self.records: return {"status": "error", "message": "Account missing"}
             target_date = dt.strptime(date_str, TIME_FORMAT).date()
-            if target_date in self.records[acc_id] and 0 <= trans_index < len(self.records[acc_id][target_date].transactions):
-                self.records[acc_id][target_date].transactions.pop(trans_index)
-                self.save_to_file(acc_id)
-                return {"status": "success"}
-            return {"status": "error", "message": "Record not found"}
+            if target_date not in self.records[acc_id]: return {"status": "error", "message": "Record not found"}
+            
+            transaction = self.records[acc_id][target_date].transactions[trans_index]
+            transfer_id_tag = next((t for t in transaction.tags if t.startswith("TID:")), None)
+            
+            self.records[acc_id][target_date].transactions.pop(trans_index)
+            self.save_to_file(acc_id)
+            
+            if transfer_id_tag:
+                for target_acc_id, acc_recs in self.records.items():
+                    if target_acc_id == acc_id: continue 
+                    for d, rec in acc_recs.items():
+                        for i, t in enumerate(rec.transactions):
+                            if transfer_id_tag in t.tags:
+                                rec.transactions.pop(i)
+                                self.save_to_file(target_acc_id)
+                                break
+            
+            return {"status": "success"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
     def get_chart_lines(self): return self.settings.get("chart_lines", {"balance": [], "main": [], "analytics": []})
@@ -423,35 +438,89 @@ class ExpenseManager:
             "total_days": (end_date - start_date).days
         }
 
-    def _get_filtered_records(self, acc_id: str, filter_query: str) -> List[Tuple[DailyRecord, float]]:
+    # --- ADVANCED FILTERING: Constraints ---
+    def _get_filtered_records(self, acc_id: str, filter_query: str, start_bound: str = None, end_bound: str = None) -> List[Tuple[DailyRecord, float]]:
         recs = self.records.get(acc_id, {})
+        if not recs: return []
+
         sorted_recs = sorted(recs.values(), key=lambda r: r.date)
-        running_bal = 0
         day_balances = {}
+        running_bal = 0
+        
         for rec in sorted_recs:
             running_bal += rec.total_change
             day_balances[rec.date] = running_bal
 
+        # Process Explicit User Date Bounds
+        start_d = None
+        end_d = None
+        if start_bound and end_bound:
+            try:
+                start_d = dt.strptime(start_bound, TIME_FORMAT).date()
+                end_d = dt.strptime(end_bound, TIME_FORMAT).date()
+            except: pass
+            
+        if not start_d: start_d = sorted_recs[0].date
+        if not end_d: end_d = max(sorted_recs[-1].date, date.today())
+
         result = []
         compiled_q = self.query_engine.compile_query(filter_query)
-        
-        for rec in sorted_recs:
-            filtered_trans = []
-            if compiled_q is None: filtered_trans = rec.transactions
-            else:
-                for t in rec.transactions:
-                    if self.query_engine.evaluate(t, rec.date, compiled_q): filtered_trans.append(t)
+        fill_empty = self.settings.get("fill_empty_days", False)
+
+        if fill_empty:
+            curr_date = start_d
             
-            if filtered_trans or (not filter_query.strip() and not rec.transactions):
-                temp_rec = DailyRecord(rec.date, rec.balance_snapshot, filtered_trans)
-                result.append((temp_rec, day_balances[rec.date]))
+            # Find the running balance accurately before our starting point
+            last_bal = 0
+            for d in sorted((k for k in day_balances.keys() if k < start_d), reverse=True):
+                last_bal = day_balances[d]
+                break
+
+            while curr_date <= end_d:
+                rec = recs.get(curr_date)
+                if rec:
+                    last_bal = day_balances[curr_date]
+
+                filtered_trans = []
+                if rec:
+                    if compiled_q is None:
+                        filtered_trans = rec.transactions
+                    else:
+                        for t in rec.transactions:
+                            if self.query_engine.evaluate(t, curr_date, compiled_q):
+                                filtered_trans.append(t)
+
+                temp_rec = DailyRecord(
+                    date=curr_date, 
+                    balance_snapshot=rec.balance_snapshot if rec else None, 
+                    transactions=filtered_trans
+                )
+                result.append((temp_rec, last_bal))
+                curr_date += timedelta(days=1)
+        else:
+            for rec in sorted_recs:
+                # Apply explicit bounds if requested
+                if start_d and end_d:
+                    if rec.date < start_d or rec.date > end_d:
+                        continue
+
+                filtered_trans = []
+                if compiled_q is None: 
+                    filtered_trans = rec.transactions
+                else:
+                    for t in rec.transactions:
+                        if self.query_engine.evaluate(t, rec.date, compiled_q): 
+                            filtered_trans.append(t)
+                
+                if filtered_trans or (not filter_query.strip() and not rec.transactions):
+                    result.append((DailyRecord(rec.date, rec.balance_snapshot, filtered_trans), day_balances[rec.date]))
+                    
         return result
 
-    def get_dashboard_data(self, acc_id: str, filter_query: str = "") -> Dict[str, Any]:
+    def get_dashboard_data(self, acc_id: str, filter_query: str = "", start_bound: str = None, end_bound: str = None) -> Dict[str, Any]:
         if acc_id not in self.settings.get("accounts", {}): return {"status": "error", "message": "Unknown account"}
-        
         try:
-            filtered = self._get_filtered_records(acc_id, filter_query)
+            filtered = self._get_filtered_records(acc_id, filter_query, start_bound, end_bound)
             records_out = []
             for rec, hist_bal in reversed(filtered):
                 d = rec.to_dict()
@@ -466,8 +535,6 @@ class ExpenseManager:
             for rec, _ in filtered:
                 for t in rec.transactions:
                     trans_count += 1
-                    
-                    # Ensure transfers/loans are EXCLUDED from Income and Expense math
                     if not is_transfer_transaction(t):
                         if t.amount > 0: 
                             total_income += t.amount
@@ -495,9 +562,9 @@ class ExpenseManager:
         except Exception as e:
             return {"status": "error", "message": f"Data process error: {str(e)}"}
 
-    def export_csv(self, acc_id: str, filter_query: str = "") -> dict:
+    def export_csv(self, acc_id: str, filter_query: str = "", start_bound: str = None, end_bound: str = None) -> dict:
         try:
-            filtered = self._get_filtered_records(acc_id, filter_query)
+            filtered = self._get_filtered_records(acc_id, filter_query, start_bound, end_bound)
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(["Date", "Day", "Historical Balance", "Daily Net Change", "Total Income", "Total Expense", "Transactions (Amount [Tags])"])
