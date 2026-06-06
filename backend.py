@@ -36,6 +36,14 @@ class Transaction:
         if self.tags: return f"{base}({', '.join(self.tags)})"
         return base
 
+# --- NEW HELPER: Identifies if a transaction is a transfer/loan ---
+def is_transfer_transaction(t: Transaction) -> bool:
+    for tag in t.tags:
+        tl = tag.lower().strip()
+        if tl in ['transfer', 'loan'] or tl.startswith('to ') or tl.startswith('from '):
+            return True
+    return False
+
 @dataclass
 class DailyRecord:
     date: date
@@ -43,11 +51,19 @@ class DailyRecord:
     transactions: List[Transaction] = field(default_factory=list)
 
     @property
-    def total_change(self) -> float: return sum(t.amount for t in self.transactions)
+    def total_change(self) -> float: 
+        # Total change ALWAYS includes everything so balances stay accurate
+        return sum(t.amount for t in self.transactions)
+        
     @property
-    def income(self) -> float: return sum(t.amount for t in self.transactions if t.amount > 0)
+    def income(self) -> float: 
+        # Income chart EXCLUDES transfers
+        return sum(t.amount for t in self.transactions if t.amount > 0 and not is_transfer_transaction(t))
+        
     @property
-    def expense(self) -> float: return sum(t.amount for t in self.transactions if t.amount < 0)
+    def expense(self) -> float: 
+        # Expense chart EXCLUDES transfers
+        return sum(t.amount for t in self.transactions if t.amount < 0 and not is_transfer_transaction(t))
 
     def to_dict(self):
         return {
@@ -173,7 +189,6 @@ class ExpenseManager:
                     settings.update(loaded)
             except: pass
         
-        # Migrate or create default account if none exists
         if not settings["accounts"]:
             settings["accounts"]["main"] = {"name": "Main Wallet", "type": "wallet", "file": "cache.txt"}
             self._save_settings_raw(settings)
@@ -244,13 +259,15 @@ class ExpenseManager:
             from_name = self.settings['accounts'][from_acc]['name']
             to_name = self.settings['accounts'][to_acc]['name']
             
-            self.add_transaction(from_acc, date_str, -amt, tags + [f"To {to_name}"])
-            self.add_transaction(to_acc, date_str, amt, tags + [f"From {from_name}"])
+            # Inject a "Transfer" tag automatically if missing so analytics ignore it later
+            transfer_tags = [t for t in tags if t.lower() != 'transfer'] + ["Transfer"]
+            
+            self.add_transaction(from_acc, date_str, -amt, transfer_tags + [f"To {to_name}"])
+            self.add_transaction(to_acc, date_str, amt, transfer_tags + [f"From {from_name}"])
             return {"status": "success"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    # --- Drive Sync ---
     def _init_drive(self):
         creds = self.settings.get('drive_creds_path', 'credentials.json')
         token = self.settings.get('drive_token_path', 'token.json')
@@ -331,7 +348,6 @@ class ExpenseManager:
             return {"status": "success", "message": "Backup Applied!"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
-    # --- Transactions ---
     def _parse_line(self, line: str) -> Optional[DailyRecord]:
         line = line.strip()
         if not line or line.startswith("//") or line.startswith("#"): return None
@@ -385,7 +401,6 @@ class ExpenseManager:
             return {"status": "error", "message": "Record not found"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
-    # --- Dashboards ---
     def get_chart_lines(self): return self.settings.get("chart_lines", {"balance": [], "main": [], "analytics": []})
     
     def save_chart_lines(self, lines_data):
@@ -451,11 +466,15 @@ class ExpenseManager:
             for rec, _ in filtered:
                 for t in rec.transactions:
                     trans_count += 1
-                    if t.amount > 0: total_income += t.amount
-                    elif t.amount < 0:
-                        total_expense += t.amount
-                        tag_key = ", ".join(sorted(t.tags)) if t.tags else "Untagged"
-                        tag_spending[tag_key] += abs(t.amount)
+                    
+                    # Ensure transfers/loans are EXCLUDED from Income and Expense math
+                    if not is_transfer_transaction(t):
+                        if t.amount > 0: 
+                            total_income += t.amount
+                        elif t.amount < 0:
+                            total_expense += t.amount
+                            tag_key = ", ".join(sorted(t.tags)) if t.tags else "Untagged"
+                            tag_spending[tag_key] += abs(t.amount)
                         
             stats_out = {
                 "record_count": trans_count,

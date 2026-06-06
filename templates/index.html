@@ -497,6 +497,7 @@
                 
                 const accInfo = allAccounts[activeAccountId];
                 
+                // Update UI Headers
                 const headerAccName = document.getElementById('header-acc-name');
                 if (headerAccName) headerAccName.innerText = accInfo ? accInfo.name : "Loading...";
                 
@@ -506,12 +507,17 @@
                 const statNetLabel = document.getElementById('stat-net-label');
                 if (statNetLabel) statNetLabel.innerText = accInfo && accInfo.type === 'person' ? "Net Debt/Credit" : "Net Savings";
 
+                // Fetch data for the active account
                 const data = await api.get_dashboard_data(activeAccountId, lastAppliedQuery);
-                if(data.status !== 'error') {
-                    if(data.global_balance !== undefined) {
-                        const balEl = document.getElementById('global-balance');
-                        if (balEl) balEl.innerText = data.global_balance.toFixed(2);
+                
+                if(data.status === 'success') {
+                    // Update the balance display for the selected account
+                    const balEl = document.getElementById('global-balance');
+                    if (balEl) {
+                        // If it's a person account, we can label the balance as Debt/Credit
+                        balEl.innerText = data.global_balance.toFixed(2);
                     }
+                    
                     if(data.stats) updateStats(data.stats); 
                     if(data.records) { 
                         updateTable(data.records); 
@@ -522,7 +528,7 @@
                 }
             } catch (err) {
                 console.error(err);
-                showError("A client-side execution error occurred. Check browser console.");
+                showError("An error occurred while loading data.");
             }
         }
 
