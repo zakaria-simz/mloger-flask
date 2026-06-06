@@ -1,12 +1,29 @@
 {
-    "sources": [],
-    "auto_fetch": true,
-    "drive_enabled": true,
+    "accounts": {
+        "main": {
+            "name": "Main Wallet",
+            "type": "wallet",
+            "file": "cache.txt"
+        },
+        "strestorantaccount1780770661": {
+            "name": "ST restorant account",
+            "type": "wallet",
+            "file": "acc_strestorantaccount1780770661.txt"
+        },
+        "iliasse1780770704": {
+            "name": "iliasse",
+            "type": "person",
+            "file": "acc_iliasse1780770704.txt"
+        }
+    },
     "chart_lines": {
         "balance": [],
         "main": [],
         "analytics": []
     },
+    "drive_enabled": true,
+    "sources": [],
+    "auto_fetch": true,
     "drive_creds_path": "credentials.json",
     "drive_token_path": "token.json",
     "last_synced": "2026-06-04 23:21:33"

@@ -17,31 +17,29 @@
         @layer components {
             .nav-item { @apply w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 transition-all; }
             .active-nav { @apply bg-primary/10 text-primary; }
+            .acc-item { @apply w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent; }
+            .active-acc { @apply bg-white border-slate-200 shadow-sm text-slate-900 font-semibold; }
             .card { @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6; }
             .input-field { @apply w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all; }
             .btn-primary { @apply px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center justify-center; }
             .btn-secondary { @apply px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2; }
             .btn-outline { @apply px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2; }
         }
-        
         body { font-family: 'Inter', sans-serif; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
         .custom-slider { position: absolute; width: 100%; height: 100%; appearance: none; background: transparent; pointer-events: none; outline: none; }
         .custom-slider::-webkit-slider-thumb { pointer-events: auto; appearance: none; width: 18px; height: 18px; background: #4f46e5; border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 2px solid white; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden w-full">
 
-    <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-40 hidden backdrop-blur-sm md:hidden transition-opacity"></div>
 
-    <!-- Responsive Sidebar -->
-    <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50 h-full shadow-2xl md:shadow-none">
-        <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-100 md:border-none">
+    <aside id="sidebar" class="w-64 bg-slate-50/80 backdrop-blur-xl border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50 h-full shadow-2xl md:shadow-none">
+        <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200/50 bg-white md:bg-transparent">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/30">
                     <i class="ph ph-wallet text-xl"></i>
@@ -51,35 +49,35 @@
             <button onclick="toggleSidebar()" class="md:hidden text-slate-400 p-1"><i class="ph ph-x text-xl"></i></button>
         </div>
         
-        <nav class="flex-1 px-4 space-y-1 mt-4 flex flex-col overflow-y-auto pb-4">
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active-nav"><i class="ph ph-chart-pie-slice text-lg"></i> Dashboard</button>
-            <button onclick="switchTab('journal')" id="nav-journal" class="nav-item"><i class="ph ph-list-dashes text-lg"></i> Records</button>
-            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item"><i class="ph ph-trend-up text-lg"></i> Analytics</button>
-            <button onclick="switchTab('settings')" id="nav-settings" class="nav-item"><i class="ph ph-gear text-lg"></i> Settings</button>
-            
-            <!-- NEW: Refresh Data Button -->
-            <div class="my-4 border-t border-slate-100"></div>
-            <button onclick="refreshData()" class="nav-item text-slate-400 hover:text-primary transition-colors">
-                <i id="refreshIcon" class="ph ph-arrows-clockwise text-lg"></i> Reload File
-            </button>
-        </nav>
-        
-        <div class="p-4 mt-auto border-t border-slate-100 md:border-none bg-white md:bg-transparent">
-            <div class="bg-slate-900 rounded-xl p-4 text-white shadow-xl shadow-slate-900/10">
-                <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Balance</p>
-                <h3 class="text-2xl font-bold tracking-tight truncate" id="global-balance">...</h3>
+        <div class="flex-1 overflow-y-auto pb-4 flex flex-col">
+            <nav class="px-4 py-4 space-y-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item active-nav"><i class="ph ph-chart-pie-slice text-lg"></i> Dashboard</button>
+                <button onclick="switchTab('journal')" id="nav-journal" class="nav-item"><i class="ph ph-list-dashes text-lg"></i> Records</button>
+                <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item"><i class="ph ph-trend-up text-lg"></i> Analytics</button>
+                <button onclick="switchTab('settings')" id="nav-settings" class="nav-item"><i class="ph ph-gear text-lg"></i> Settings</button>
+                <button onclick="reloadData(this)" class="nav-item text-slate-500 hover:text-primary group"><i class="ph ph-arrows-clockwise text-lg transition-transform duration-500"></i> Reload Data</button>
+            </nav>
+
+            <div class="border-t border-slate-200/50 mx-4 my-2"></div>
+
+            <div class="px-4 py-2">
+                <div class="flex items-center justify-between px-1 mb-2"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Wallets</h3></div>
+                <div id="wallets-list" class="space-y-1"></div>
+                
+                <div class="flex items-center justify-between px-1 mt-6 mb-2"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">People (Loans/Debts)</h3></div>
+                <div id="people-list" class="space-y-1"></div>
             </div>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden w-full">
-        <!-- Responsive Header Stack -->
         <header class="bg-white border-b border-slate-200 z-10 shrink-0 shadow-sm">
-            
             <div class="flex items-center justify-between h-16 px-4 md:px-8">
                 <div class="flex items-center gap-3">
                     <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 text-slate-500 rounded-lg hover:bg-slate-100"><i class="ph ph-list text-2xl"></i></button>
-                    <div class="md:hidden flex items-center gap-2 font-bold text-lg">mLoger<span class="text-primary">UI</span></div>
+                    <div class="flex items-center gap-2 font-bold text-lg md:text-xl text-slate-800 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                        <i id="header-acc-icon" class="ph ph-wallet text-primary"></i> <span id="header-acc-name">Loading...</span>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="openLinesModal()" class="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><i class="ph ph-faders-horizontal text-2xl md:text-xl"></i></button>
@@ -99,9 +97,7 @@
                     </select>
 
                     <div id="customRangeContainer" class="hidden flex-col flex-1 lg:w-64 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 shadow-inner relative">
-                        <div class="flex justify-between text-[11px] text-slate-500 font-mono mb-1.5">
-                            <span id="sliderLabelStart">...</span><span id="sliderLabelEnd">...</span>
-                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-500 font-mono mb-1.5"><span id="sliderLabelStart">...</span><span id="sliderLabelEnd">...</span></div>
                         <div class="relative w-full h-1.5 bg-slate-200 rounded-full flex items-center">
                             <div id="sliderTrack" class="absolute h-full bg-primary/70 rounded-full"></div>
                             <input type="range" id="sliderStart" min="0" max="100" value="0" class="custom-slider" oninput="updateSliderUI();" onchange="executeQuery()">
@@ -113,18 +109,19 @@
                 <div class="flex w-full gap-2 relative">
                     <div class="relative w-full group flex-1">
                         <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary"></i>
-                        <input type="text" id="queryInput" placeholder="Extra conditions (e.g. amount > 50)" 
-                            class="w-full bg-slate-100 border-none rounded-xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-mono text-slate-600"
-                            onkeydown="if(event.key === 'Enter') executeQuery()">
+                        <input type="text" id="queryInput" placeholder="Extra conditions (e.g. amount > 50)" class="w-full bg-slate-100 border-none rounded-xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-mono text-slate-600" onkeydown="if(event.key === 'Enter') executeQuery()">
                     </div>
                     <button onclick="executeQuery()" class="btn-primary shrink-0">Apply</button>
                 </div>
+            </div>
+            
+            <div id="error-toast" class="hidden bg-rose-50 border-b border-rose-200 px-4 py-2 flex items-center gap-2 text-rose-700 text-sm">
+                <i class="ph ph-warning-circle text-lg"></i> <span id="error-msg"></span>
             </div>
         </header>
 
         <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 bg-slate-50/50">
 
-            <!-- DASHBOARD VIEW -->
             <div id="dashboard-view" class="view-section fade-in space-y-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
                     <h2 class="text-lg font-bold text-slate-900">Dashboard</h2>
@@ -134,66 +131,28 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
                     <div class="card"><h3 class="text-2xl font-bold text-emerald-600 truncate" id="stat-income">+0.00</h3><span class="text-xs uppercase text-slate-400">Filtered Income</span></div>
                     <div class="card"><h3 class="text-2xl font-bold text-rose-600 truncate" id="stat-expense">-0.00</h3><span class="text-xs uppercase text-slate-400">Filtered Expense</span></div>
-                    <div class="card"><h3 class="text-2xl font-bold text-slate-900 truncate" id="stat-net">0.00</h3><span class="text-xs uppercase text-slate-400">Net Difference</span></div>
+                    <div class="card"><h3 class="text-2xl font-bold text-slate-900 truncate" id="stat-net">0.00</h3><span class="text-xs uppercase text-slate-400" id="stat-net-label">Net Difference</span></div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
                     <div class="card flex flex-col">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-slate-500 uppercase">Balance History</h3>
-                            <button onclick="downloadChart('balanceChart', 'Balance_History')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
-                        </div>
+                        <div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-500 uppercase">History</h3><button onclick="downloadChart('balanceChart', 'Balance_History')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button></div>
                         <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="balanceChart"></canvas></div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto md:h-80">
-                    <div class="lg:col-span-2 card flex flex-col h-64 md:h-auto">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-slate-500 uppercase">Income vs Expense</h3>
-                            <button onclick="downloadChart('mainChart', 'Income_Expense_Bar')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
-                        </div>
-                        <div class="flex-1 relative w-full bg-white"><canvas id="mainChart"></canvas></div>
-                    </div>
-                    <div class="card flex flex-col h-64 md:h-auto">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-slate-500 uppercase">Top Categories</h3>
-                            <button onclick="downloadChart('pieChart', 'Categories_Pie')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button>
-                        </div>
-                        <div class="flex-1 relative w-full flex items-center justify-center bg-white"><canvas id="pieChart"></canvas></div>
-                    </div>
+                    <div class="lg:col-span-2 card flex flex-col h-64 md:h-auto"><div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-500 uppercase">Income vs Expense</h3><button onclick="downloadChart('mainChart', 'Income_Expense_Bar')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button></div><div class="flex-1 relative w-full bg-white"><canvas id="mainChart"></canvas></div></div>
+                    <div class="card flex flex-col h-64 md:h-auto"><div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-500 uppercase">Top Categories</h3><button onclick="downloadChart('pieChart', 'Categories_Pie')" class="text-slate-400 hover:text-primary"><i class="ph ph-download-simple"></i></button></div><div class="flex-1 relative w-full flex items-center justify-center bg-white"><canvas id="pieChart"></canvas></div></div>
                 </div>
             </div>
 
-            <!-- ANALYTICS VIEW -->
             <div id="analytics-view" class="view-section hidden fade-in space-y-6">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 class="text-lg font-bold text-slate-900">Advanced Trends & Exports</h2>
-                    <button onclick="downloadExcelCSV()" class="btn-primary flex items-center gap-2"><i class="ph ph-file-csv text-lg"></i> Export to Excel (CSV)</button>
-                </div>
-
-                <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
-                    <div class="card flex flex-col">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Cumulative Spending Trend</h3>
-                            <button onclick="downloadChart('analyticsTrendChart', 'Cumulative_Spending')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button>
-                        </div>
-                        <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTrendChart"></canvas></div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-6 h-64 md:h-80">
-                    <div class="card flex flex-col">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Tag Heat Breakdown</h3>
-                            <button onclick="downloadChart('analyticsTagChart', 'Tag_Heat_Bar')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button>
-                        </div>
-                        <div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTagChart"></canvas></div>
-                    </div>
-                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4"><h2 class="text-lg font-bold text-slate-900">Advanced Trends & Exports</h2><button onclick="downloadExcelCSV()" class="btn-primary flex items-center gap-2"><i class="ph ph-file-csv text-lg"></i> Export to Excel</button></div>
+                <div class="grid grid-cols-1 gap-6 h-64 md:h-80"><div class="card flex flex-col"><div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Cumulative Spending</h3><button onclick="downloadChart('analyticsTrendChart', 'Cumulative_Spending')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button></div><div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTrendChart"></canvas></div></div></div>
+                <div class="grid grid-cols-1 gap-6 h-64 md:h-80"><div class="card flex flex-col"><div class="flex justify-between items-center mb-2"><h3 class="text-sm font-bold text-slate-500 uppercase truncate pr-2">Tag Heat Breakdown</h3><button onclick="downloadChart('analyticsTagChart', 'Tag_Heat_Bar')" class="btn-outline text-xs shrink-0"><i class="ph ph-image"></i> PNG</button></div><div class="flex-1 relative w-full bg-white min-h-[200px]"><canvas id="analyticsTagChart"></canvas></div></div></div>
             </div>
 
-            <!-- JOURNAL VIEW -->
             <div id="journal-view" class="view-section hidden fade-in">
                 <div class="card p-0 overflow-hidden border border-slate-200">
                     <div class="overflow-x-auto w-full">
@@ -207,15 +166,25 @@
                 </div>
             </div>
 
-            <!-- SETTINGS VIEW -->
             <div id="settings-view" class="view-section hidden fade-in max-w-3xl mx-auto space-y-6">
-                <div class="card border-blue-100 space-y-4">
+                <div class="card border-emerald-100 space-y-4 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10"></div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-users text-emerald-600"></i> Create New Account</h2>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="newAccName" placeholder="Account Name (e.g. Bank, Alice)" class="input-field flex-1">
+                        <select id="newAccType" class="input-field w-full sm:w-40 cursor-pointer">
+                            <option value="wallet">Wallet (Cash/Bank)</option>
+                            <option value="person">Person (Loan/Debt)</option>
+                        </select>
+                        <button onclick="createNewAccount()" class="btn-primary whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"><i class="ph ph-plus mr-1"></i> Create</button>
+                    </div>
+                </div>
+
+                <div class="card border-blue-100 space-y-4 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10"></div>
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-google-logo text-blue-600"></i> Google Drive Sync</h2>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="driveToggle" class="sr-only peer" onchange="toggleDrive()">
-                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-google-logo text-blue-600"></i> Cloud Database Backup</h2>
+                        <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="driveToggle" class="sr-only peer" onchange="toggleDrive()"><div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                     </div>
                     <div id="driveSettings" class="space-y-4 hidden">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -225,36 +194,58 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 mt-2">
                             <span class="text-xs text-slate-400" id="driveLastSync">Last Synced: Never</span>
                             <div class="flex gap-2">
-                                <button onclick="drivePush()" class="btn-primary flex items-center gap-2 text-xs flex-1 sm:flex-none"><i class="ph ph-upload-simple"></i> Push Now</button>
-                                <button onclick="openDriveModal()" class="btn-secondary text-xs flex-1 sm:flex-none"><i class="ph ph-clock-counter-clockwise"></i> Versions</button>
+                                <button onclick="drivePush()" class="btn-primary flex items-center gap-2 text-xs flex-1 sm:flex-none"><i class="ph ph-upload-simple"></i> Backup DB</button>
+                                <button onclick="openDriveModal()" class="btn-secondary text-xs flex-1 sm:flex-none"><i class="ph ph-clock-counter-clockwise"></i> Restore</button>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="card space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="ph ph-globe"></i> LAN Sources</h2>
-                        <button onclick="scanLan()" id="scanBtn" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center gap-1"><i class="ph ph-radar"></i> Scan</button>
-                    </div>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="newSourceUrl" placeholder="http://192.168.../api" class="input-field">
-                        <button onclick="addSource()" class="btn-primary">Add</button>
-                    </div>
-                    <ul id="sourcesList" class="space-y-2"></ul>
-                    <button onclick="syncAll()" class="btn-secondary w-full justify-center"><i class="ph ph-arrows-clockwise"></i> Sync All Now</button>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- CHART LINES SETTINGS MODAL -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col">
+            <div class="flex bg-slate-50 border-b border-slate-100 text-sm font-medium">
+                <button id="tab-standard" onclick="switchModalTab('standard')" class="flex-1 py-3 border-b-2 border-primary text-primary bg-white transition-all">Standard</button>
+                <button id="tab-transfer" onclick="switchModalTab('transfer')" class="flex-1 py-3 border-b-2 border-transparent text-slate-500 hover:bg-slate-100 transition-all">Transfer / Loan</button>
+            </div>
+            <div class="p-6">
+                <input type="hidden" id="editIndex">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500 uppercase">Date</label>
+                        <input type="date" id="editDate" class="input-field mt-1 font-mono text-sm text-slate-700">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500 uppercase" id="lbl-amount">Amount (+ Inc / - Exp)</label>
+                        <input type="number" step="0.01" id="editAmount" class="input-field font-mono text-lg mt-1" placeholder="0.00">
+                    </div>
+                    <div id="transfer-controls" class="hidden grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                        <div><label class="text-xs font-semibold text-slate-500 uppercase">From</label><select id="transferFrom" class="input-field mt-1 font-semibold text-rose-600 bg-rose-50 cursor-pointer"></select></div>
+                        <div><label class="text-xs font-semibold text-slate-500 uppercase">To</label><select id="transferTo" class="input-field mt-1 font-semibold text-emerald-600 bg-emerald-50 cursor-pointer"></select></div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500 uppercase">Tags</label>
+                        <input type="text" id="editTags" class="input-field mt-1" placeholder="e.g. food, cash">
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-8">
+                    <button id="btn-delete-trans" onclick="deleteTransaction()" class="text-rose-600 text-sm hover:underline font-semibold">Delete</button>
+                    <div class="flex-1"></div>
+                    <button onclick="closeModal()" class="text-slate-500 text-sm font-semibold hover:bg-slate-50 px-2 py-1 rounded">Cancel</button>
+                    <button onclick="saveEdit()" class="btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="linesModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-bold flex items-center gap-2"><i class="ph ph-faders-horizontal text-primary"></i> Chart Limits</h3>
                 <button onclick="document.getElementById('linesModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-2"><i class="ph ph-x text-xl"></i></button>
             </div>
-            
             <div class="flex-1 overflow-y-auto space-y-6 pr-2">
                 <div>
                     <div class="flex justify-between items-center mb-2"><label class="text-sm font-bold text-slate-700">Balance Lines</label><button onclick="addLine('balance')" class="text-xs text-primary font-medium p-1">+ Add</button></div>
@@ -269,7 +260,6 @@
                     <div id="analyticsLinesContainer" class="space-y-2"></div>
                 </div>
             </div>
-
             <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
                 <div class="flex-1"></div>
                 <button onclick="document.getElementById('linesModal').classList.add('hidden')" class="text-slate-500 text-sm font-semibold hover:bg-slate-50 px-3 py-2 rounded">Cancel</button>
@@ -278,31 +268,23 @@
         </div>
     </div>
 
-    <!-- DRIVE VERSIONS MODAL -->
     <div id="driveModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-2xl shadow-2xl h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold">Drive Backups</h3><button onclick="document.getElementById('driveModal').classList.add('hidden')" class="text-slate-400 p-2"><i class="ph ph-x text-xl"></i></button></div>
-            <div class="flex-1 overflow-y-auto border rounded-xl border-slate-100 mb-4"><div class="overflow-x-auto"><table class="w-full text-left text-sm min-w-[400px]"><thead class="bg-slate-50 text-slate-500 uppercase text-xs sticky top-0"><tr><th class="p-3">Filename</th><th class="p-3 text-right">Action</th></tr></thead><tbody id="driveVersionsList" class="divide-y divide-slate-100"></tbody></table></div></div>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Drive Backups</h3>
+                <button onclick="document.getElementById('driveModal').classList.add('hidden')" class="text-slate-400 p-2"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto border rounded-xl border-slate-100 mb-4">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm min-w-[400px]">
+                        <thead class="bg-slate-50 text-slate-500 uppercase text-xs sticky top-0">
+                            <tr><th class="p-3">Filename</th><th class="p-3 text-right">Action</th></tr>
+                        </thead>
+                        <tbody id="driveVersionsList" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
             <div class="bg-slate-50 p-3 rounded-lg text-xs font-mono text-slate-600 h-32 overflow-y-auto" id="drivePreviewBox">Select a version to preview content here...</div>
-        </div>
-    </div>
-
-    <!-- EDIT MODAL -->
-    <div id="editModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 class="text-lg font-bold mb-4">Edit Transaction</h3>
-            <input type="hidden" id="editIndex">
-            <div class="space-y-4">
-                <div><label class="text-xs font-semibold text-slate-500 uppercase">Date</label><input type="date" id="editDate" class="input-field mt-1 font-mono text-sm text-slate-700"></div>
-                <div><label class="text-xs font-semibold text-slate-500 uppercase">Amount (+ Inc / - Exp)</label><input type="number" step="0.01" id="editAmount" class="input-field font-mono text-lg mt-1"></div>
-                <div><label class="text-xs font-semibold text-slate-500 uppercase">Tags (comma separated)</label><input type="text" id="editTags" class="input-field mt-1" placeholder="e.g. food, cash"></div>
-            </div>
-            <div class="flex gap-3 mt-8">
-                <button onclick="deleteTransaction()" class="text-rose-600 text-sm hover:underline font-semibold">Delete</button>
-                <div class="flex-1"></div>
-                <button onclick="closeModal()" class="text-slate-500 text-sm font-semibold hover:bg-slate-50 px-2 py-1 rounded">Cancel</button>
-                <button onclick="saveEdit()" class="btn-primary">Save changes</button>
-            </div>
         </div>
     </div>
 
@@ -311,214 +293,764 @@
         const api = {
             _req: async (action, payload={}) => {
                 try {
-                    const res = await fetch('/api/' + action, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                    const res = await fetch('/api/' + action, {
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify(payload) 
+                    });
                     return await res.json();
-                } catch(e) { console.error("API Error:", e); return {status: 'error', message: 'Network error'}; }
+                } catch(e) {
+                    console.error("API Error:", e);
+                    return {status: 'error', message: 'Network connection failed'};
+                }
             },
-            reload_data: () => api._req('reload_data'),  // NEW Endpoint binding
+            get_accounts_summary: () => api._req('get_accounts_summary'),
+            create_account: (n, t) => api._req('create_account', {name: n, type: t}),
+            add_transfer: (d, f, t, a, tags) => api._req('add_transfer', {date: d, from_acc: f, to_acc: t, amount: a, tags: tags}),
+            get_dashboard_data: (id, q) => api._req('get_dashboard_data', {acc_id: id, query: q}),
+            get_date_bounds: (id) => api._req('get_date_bounds', {acc_id: id}),
+            export_csv: (id, q) => api._req('export_csv', {acc_id: id, query: q}),
+            add_transaction: (id, d, a, t) => api._req('add_transaction', {acc_id: id, date: d, amount: a, tags: t}),
+            update_transaction: (id, d, idx, a, t) => api._req('update_transaction', {acc_id: id, date: d, index: idx, amount: a, tags: t}),
+            delete_transaction: (id, d, idx) => api._req('delete_transaction', {acc_id: id, date: d, index: idx}),
+            get_chart_lines: () => api._req('get_chart_lines'),
+            save_chart_lines: (l) => api._req('save_chart_lines', {lines: l}),
+            reload_data: () => api._req('reload_data'),
             get_drive_settings: () => api._req('get_drive_settings'),
             save_drive_settings: (e, c, t) => api._req('save_drive_settings', {enabled: e, creds: c, token: t}),
             drive_push: () => api._req('drive_push'),
             drive_list_versions: () => api._req('drive_list_versions'),
             drive_preview_version: (fid) => api._req('drive_preview_version', {file_id: fid}),
-            drive_apply_version: (fid) => api._req('drive_apply_version', {file_id: fid}),
-            get_date_bounds: () => api._req('get_date_bounds'),
-            get_dashboard_data: (q) => api._req('get_dashboard_data', {query: q}),
-            export_csv: (q) => api._req('export_csv', {query: q}),
-            add_transaction: (d, a, t) => api._req('add_transaction', {date: d, amount: a, tags: t}),
-            update_transaction: (d, i, a, t) => api._req('update_transaction', {date: d, index: i, amount: a, tags: t}),
-            delete_transaction: (d, i) => api._req('delete_transaction', {date: d, index: i}),
-            get_sources: () => api._req('get_sources'),
-            add_source: (u) => api._req('add_source', {url: u}),
-            remove_source: (u) => api._req('remove_source', {url: u}),
-            scan_network_and_sync: () => api._req('scan_network_and_sync'),
-            sync_all_sources: () => api._req('sync_all_sources'),
-            get_chart_lines: () => api._req('get_chart_lines'),
-            save_chart_lines: (lines) => api._req('save_chart_lines', {lines: lines})
+            drive_apply_version: (fid) => api._req('drive_apply_version', {file_id: fid})
         };
 
-        let driveConfig = { enabled: false };
+        // --- GLOBAL STATE ---
+        let activeAccountId = "main";
+        let allAccounts = {}; 
         let mainChart, pieChart, balanceChart, analyticsTrendChart, analyticsTagChart;
         let boundsStart = null; 
         let lastAppliedQuery = ""; 
         let userChartLines = { balance: [], main: [], analytics: [] };
+        let modalMode = 'standard';
 
-        // --- NEW: REFRESH DATA ---
-        async function refreshData() {
-            const icon = document.getElementById('refreshIcon');
-            icon.classList.add('animate-spin'); // Add spinning animation
-            
-            const res = await api.reload_data();
-            if (res.status === 'success') {
-                await executeQuery(); // Refetch stats and redraw charts
-            } else {
-                alert("Failed to reload data: " + res.message);
-            }
-            
-            // Stop spinning after a minimum 500ms to ensure the user sees the feedback
-            setTimeout(() => icon.classList.remove('animate-spin'), 500); 
-        }
-
-        // --- MOBILE SIDEBAR ---
-        function toggleSidebar() {
+        // --- UTILS ---
+        function toggleSidebar() { 
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sidebar-overlay');
-            sb.classList.toggle('-translate-x-full');
-            ov.classList.toggle('hidden');
+            if (sb) sb.classList.toggle('-translate-x-full'); 
+            if (ov) ov.classList.toggle('hidden'); 
         }
-
-        // --- CUSTOM CHART LINES ---
-        async function loadChartLines() {
-            userChartLines = await api.get_chart_lines();
-            if(!userChartLines.balance) userChartLines.balance = [];
-            if(!userChartLines.main) userChartLines.main = [];
-            if(!userChartLines.analytics) userChartLines.analytics = [];
-        }
-
-        function openLinesModal() {
-            renderLinesConfig('balance', 'balanceLinesContainer');
-            renderLinesConfig('main', 'mainLinesContainer');
-            renderLinesConfig('analytics', 'analyticsLinesContainer');
-            document.getElementById('linesModal').classList.remove('hidden');
-        }
-
-        function renderLinesConfig(chartType, containerId) {
-            const container = document.getElementById(containerId);
-            if (userChartLines[chartType].length === 0) { container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">No lines configured.</p>`; return; }
-            container.innerHTML = userChartLines[chartType].map((line, i) => `
-                <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap sm:flex-nowrap">
-                    <input type="text" placeholder="Line Label" value="${line.label}" onchange="updateLine('${chartType}', ${i}, 'label', this.value)" class="flex-1 w-full sm:w-auto bg-white border border-slate-200 rounded px-3 py-1.5 text-sm focus:ring-1 outline-none">
-                    <input type="number" step="0.01" placeholder="Numeric Value" value="${line.value}" onchange="updateLine('${chartType}', ${i}, 'value', this.value)" class="flex-1 sm:w-24 bg-white border border-slate-200 rounded px-3 py-1.5 text-sm font-mono focus:ring-1 outline-none">
-                    <input type="color" value="${line.color}" onchange="updateLine('${chartType}', ${i}, 'color', this.value)" class="w-10 h-8 rounded cursor-pointer border-0 p-0 bg-transparent shrink-0">
-                    <button onclick="removeLine('${chartType}', ${i})" class="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors shrink-0"><i class="ph ph-trash"></i></button>
-                </div>
-            `).join('');
-        }
-
-        function addLine(chartType) { userChartLines[chartType].push({ label: 'Limit', value: 0, color: '#f59e0b' }); renderLinesConfig(chartType, chartType + 'LinesContainer'); }
-        function updateLine(chartType, index, field, value) { userChartLines[chartType][index][field] = value; }
-        function removeLine(chartType, index) { userChartLines[chartType].splice(index, 1); renderLinesConfig(chartType, chartType + 'LinesContainer'); }
-        async function saveChartLines() { const res = await api.save_chart_lines(userChartLines); if(res.status === 'success') { document.getElementById('linesModal').classList.add('hidden'); executeQuery(); } else { alert("Failed to save: " + res.message); } }
-        function generateHorizontalLineDataset(lineConfig, arrayLength) { return { type: 'line', label: lineConfig.label || 'Limit', data: Array(arrayLength).fill(parseFloat(lineConfig.value)), borderColor: lineConfig.color || '#ef4444', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false, tension: 0 }; }
-
-        // --- DRIVE SYNC ---
-        async function get_drive_config(){ driveConfig = await api.get_drive_settings(); document.getElementById('driveToggle').checked = driveConfig.enabled; document.getElementById('driveSettings').classList.toggle('hidden', !driveConfig.enabled); }
-        async function toggleDrive() { const e = document.getElementById('driveToggle').checked; const c = document.getElementById('driveCreds').value; const t = document.getElementById('driveToken').value; const res = await api.save_drive_settings(e, c, t); if(res.status === 'error') { alert("Drive Error: " + res.message); document.getElementById('driveToggle').checked = false; document.getElementById('driveSettings').classList.add('hidden'); } else { document.getElementById('driveSettings').classList.toggle('hidden', !e); alert("Settings Saved"); } }
-        async function drivePush() { const btn = event.target; const txt = btn.innerText; btn.innerText = "Pushing..."; btn.disabled=true; const res = await api.drive_push(); alert(res.message); if(res.status==='success') document.getElementById('driveLastSync').innerText = "Last Synced: " + res.last_synced; btn.innerText = txt; btn.disabled=false; }
-        async function openDriveModal() { document.getElementById('driveModal').classList.remove('hidden'); document.getElementById('driveVersionsList').innerHTML = '<tr><td colspan="2" class="p-4 text-center">Loading...</td></tr>'; const res = await api.drive_list_versions(); if(res.status==='error') { document.getElementById('driveVersionsList').innerHTML = `<tr><td colspan="2" class="p-4 text-red-500">${res.message}</td></tr>`; return; } document.getElementById('driveVersionsList').innerHTML = res.files.map(f => `<tr class="hover:bg-slate-50"><td class="p-3 font-medium text-xs break-all">${f.name}<br><span class="text-slate-400 font-normal">${new Date(f.createdTime).toLocaleString()}</span></td><td class="p-3 text-right gap-2 flex justify-end"><button onclick="previewDrive('${f.id}')" class="text-blue-600 font-medium">Prev</button> <button onclick="applyDrive('${f.id}')" class="text-emerald-600 font-medium border border-emerald-200 px-2 rounded">Use</button></td></tr>`).join(''); }
-        async function previewDrive(fid) { document.getElementById('drivePreviewBox').innerText = "Downloading..."; const res = await api.drive_preview_version(fid); if(res.status === 'success') document.getElementById('drivePreviewBox').innerText = res.preview; else alert(res.message); }
-        async function applyDrive(fid) { if(!confirm("Overwrite local data?")) return; const res = await api.drive_apply_version(fid); alert(res.message); document.getElementById('driveModal').classList.add('hidden'); executeQuery(); }
-
-        // --- CUSTOM SLIDER ---
-        async function toggleCustomRange() {
-            const isCustom = document.getElementById('presetRange').value === 'custom';
-            const container = document.getElementById('customRangeContainer');
-            if (isCustom) {
-                container.classList.remove('hidden'); container.classList.add('flex');
-                const bounds = await api.get_date_bounds();
-                const parts = bounds.start.split('/'); boundsStart = new Date(parts[2], parts[1]-1, parts[0]);
-                const maxDays = bounds.total_days > 0 ? bounds.total_days : 1;
-                document.getElementById('sliderStart').max = maxDays; document.getElementById('sliderEnd').max = maxDays;
-                if(document.getElementById('sliderStart').value == 0 && document.getElementById('sliderEnd').value == 100) document.getElementById('sliderEnd').value = maxDays;
-                updateSliderUI();
-            } else { container.classList.add('hidden'); container.classList.remove('flex'); }
-        }
-
-        function updateSliderUI() {
-            const sStart = document.getElementById('sliderStart'), sEnd = document.getElementById('sliderEnd');
-            let val1 = parseInt(sStart.value), val2 = parseInt(sEnd.value);
-            if (val1 > val2) { let tmp = val1; val1 = val2; val2 = tmp; sStart.value = val1; sEnd.value = val2; }
-            const max = parseInt(sStart.max);
-            document.getElementById('sliderTrack').style.left = ((val1/max)*100) + '%';
-            document.getElementById('sliderTrack').style.width = (((val2-val1)/max)*100) + '%';
-            if(boundsStart) {
-                const d1 = new Date(boundsStart); d1.setDate(d1.getDate() + val1); const d2 = new Date(boundsStart); d2.setDate(d2.getDate() + val2);
-                document.getElementById('sliderLabelStart').innerText = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')}/${d1.getFullYear()}`;
-                document.getElementById('sliderLabelEnd').innerText = `${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')}/${d2.getFullYear()}`;
+        
+        function showError(msg) {
+            const el = document.getElementById('error-toast');
+            const msgEl = document.getElementById('error-msg');
+            if (msgEl) msgEl.innerText = msg;
+            if (el) {
+                el.classList.remove('hidden');
+                setTimeout(() => el.classList.add('hidden'), 5000);
+            } else {
+                alert("Error: " + msg); // Fallback if toast is missing
             }
+        }
+
+        // --- ACCOUNT MANAGEMENT ---
+        async function loadAccounts() {
+            const res = await api.get_accounts_summary();
+            if(res.status !== 'success') return showError(res.message || "Failed to load accounts");
+            allAccounts = res.accounts;
+            
+            if(!allAccounts[activeAccountId]) {
+                activeAccountId = Object.keys(allAccounts)[0] || "main";
+            }
+
+            let wHtml = '';
+            let pHtml = '';
+            let selectOptions = '';
+            
+            for(let id in allAccounts) {
+                const acc = allAccounts[id];
+                const activeCls = id === activeAccountId ? 'active-acc' : '';
+                selectOptions += `<option value="${id}">${acc.name}</option>`;
+                
+                if(acc.type === 'wallet') { 
+                    wHtml += `<div onclick="switchAccount('${id}')" class="acc-item ${activeCls}"><span>${acc.name}</span><span class="font-mono font-medium">${acc.balance.toFixed(2)}</span></div>`; 
+                } else { 
+                    let statusText = `<span class="text-slate-400">Settled</span>`; 
+                    if(acc.balance > 0) statusText = `<span class="text-emerald-500 font-medium">Owes ${acc.balance.toFixed(2)}</span>`; 
+                    else if(acc.balance < 0) statusText = `<span class="text-rose-500 font-medium">I owe ${Math.abs(acc.balance).toFixed(2)}</span>`; 
+                    pHtml += `<div onclick="switchAccount('${id}')" class="acc-item ${activeCls}"><span>${acc.name}</span><span class="font-mono text-xs">${statusText}</span></div>`; 
+                }
+            }
+            
+            const wList = document.getElementById('wallets-list');
+            const pList = document.getElementById('people-list');
+            if (wList) wList.innerHTML = wHtml; 
+            if (pList) pList.innerHTML = pHtml;
+            
+            const fromSelect = document.getElementById('transferFrom'); 
+            const toSelect = document.getElementById('transferTo'); 
+            if (fromSelect) fromSelect.innerHTML = selectOptions;
+            if (toSelect) toSelect.innerHTML = selectOptions;
+        }
+
+        async function switchAccount(id) { 
+            activeAccountId = id; 
+            if(window.innerWidth < 768) toggleSidebar(); 
+            await loadAccounts(); 
+            await executeQuery(); 
+        }
+
+        async function createNewAccount() { 
+            const nEl = document.getElementById('newAccName');
+            const tEl = document.getElementById('newAccType');
+            if (!nEl || !tEl) return;
+            
+            const res = await api.create_account(nEl.value, tEl.value); 
+            if(res.status === 'success') { 
+                nEl.value = ''; 
+                alert("Account Created!"); 
+                await switchAccount(res.account_id); 
+            } else { 
+                showError(res.message); 
+            } 
+        }
+
+        async function reloadData(btn) { 
+            const icon = btn ? btn.querySelector('i') : null; 
+            if (icon) icon.classList.add('animate-spin'); 
+            
+            await api.reload_data(); 
+            await loadAccounts(); 
+            await executeQuery(); 
+            
+            if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 500); 
+        }
+
+        // --- DASHBOARD DATA EXTRACTION ---
+        function extractQuery() { 
+            const rangeEl = document.getElementById('presetRange');
+            const inputEl = document.getElementById('queryInput');
+            
+            const rangeVal = rangeEl ? rangeEl.value : 'all'; 
+            const userText = inputEl ? inputEl.value.trim() : ''; 
+            
+            const now = new Date(); 
+            const fmt = (d) => { 
+                const dd = String(d.getDate()).padStart(2, '0'); 
+                const mm = String(d.getMonth() + 1).padStart(2, '0'); 
+                return `${dd}/${mm}/${d.getFullYear()}`; 
+            }; 
+            
+            let dateQuery = ""; 
+            let badgeText = "All Time"; 
+            
+            if (rangeVal === 'custom') { 
+                const lblStart = document.getElementById('sliderLabelStart');
+                const lblEnd = document.getElementById('sliderLabelEnd');
+                const startText = lblStart ? lblStart.innerText : '...';
+                const endText = lblEnd ? lblEnd.innerText : '...';
+                
+                if(startText !== '...' && endText !== '...') { 
+                    dateQuery = `date >= ${startText} and date <= ${endText}`; 
+                    badgeText = `${startText} - ${endText}`; 
+                } 
+            } else if (rangeVal === 'this_week') { 
+                const dayOfWeek = now.getDay(); 
+                const numDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+                const start = new Date(now); start.setDate(now.getDate() - numDay); 
+                const end = new Date(start); end.setDate(start.getDate() + 6); 
+                dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
+                badgeText = "Current Week"; 
+            } else if (rangeVal === 'this_month') { 
+                const start = new Date(now.getFullYear(), now.getMonth(), 1); 
+                const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); 
+                dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
+                badgeText = "This Month"; 
+            } else if (rangeVal === 'last_month') { 
+                const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
+                const end = new Date(now.getFullYear(), now.getMonth(), 0); 
+                dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
+                badgeText = "Last Month"; 
+            } else if (rangeVal === 'this_year') { 
+                const start = new Date(now.getFullYear(), 0, 1); 
+                const end = new Date(now.getFullYear(), 11, 31); 
+                dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; 
+                badgeText = "This Year"; 
+            } 
+            
+            let finalQuery = ""; 
+            if (dateQuery && userText) finalQuery = `(${dateQuery}) and (${userText})`; 
+            else if (dateQuery) finalQuery = dateQuery; 
+            else if (userText) finalQuery = userText; 
+            
+            return { query: finalQuery, badge: badgeText }; 
+        }
+
+        // --- CORE EXECUTION (BULLETPROOFED) ---
+        async function executeQuery() {
+            try {
+                const extraction = extractQuery(); 
+                lastAppliedQuery = extraction.query; 
+                
+                const badgeEl = document.getElementById('date-range-badge');
+                if (badgeEl) badgeEl.innerText = extraction.badge;
+                
+                const accInfo = allAccounts[activeAccountId];
+                
+                const headerAccName = document.getElementById('header-acc-name');
+                if (headerAccName) headerAccName.innerText = accInfo ? accInfo.name : "Loading...";
+                
+                const headerAccIcon = document.getElementById('header-acc-icon');
+                if (headerAccIcon) headerAccIcon.className = accInfo && accInfo.type === 'person' ? "ph ph-user text-primary" : "ph ph-wallet text-primary";
+                
+                const statNetLabel = document.getElementById('stat-net-label');
+                if (statNetLabel) statNetLabel.innerText = accInfo && accInfo.type === 'person' ? "Net Debt/Credit" : "Net Savings";
+
+                const data = await api.get_dashboard_data(activeAccountId, lastAppliedQuery);
+                if(data.status !== 'error') {
+                    if(data.global_balance !== undefined) {
+                        const balEl = document.getElementById('global-balance');
+                        if (balEl) balEl.innerText = data.global_balance.toFixed(2);
+                    }
+                    if(data.stats) updateStats(data.stats); 
+                    if(data.records) { 
+                        updateTable(data.records); 
+                        updateCharts(data.records, data.stats); 
+                    }
+                } else {
+                    showError(data.message || "Failed to load dashboard data.");
+                }
+            } catch (err) {
+                console.error(err);
+                showError("A client-side execution error occurred. Check browser console.");
+            }
+        }
+
+        function updateStats(stats) { 
+            if(!stats) return; 
+            
+            const incEl = document.getElementById('stat-income');
+            if (incEl) incEl.innerText = "+" + (stats.total_income||0).toFixed(2); 
+            
+            const expEl = document.getElementById('stat-expense');
+            if (expEl) expEl.innerText = (stats.total_expense||0).toFixed(2); 
+            
+            const netEl = document.getElementById('stat-net');
+            if (netEl) netEl.innerText = (stats.net_savings||0).toFixed(2); 
+        }
+
+        // --- MODALS ---
+        function switchModalTab(tab) { 
+            modalMode = tab; 
+            const isT = tab === 'transfer'; 
+            
+            const tStand = document.getElementById('tab-standard');
+            const tTrans = document.getElementById('tab-transfer');
+            const tCtrls = document.getElementById('transfer-controls');
+            const lblAmt = document.getElementById('lbl-amount');
+            const btnDel = document.getElementById('btn-delete-trans');
+
+            if (tStand) tStand.className = isT ? "flex-1 py-3 border-b-2 border-transparent text-slate-500 hover:bg-slate-100 transition-all" : "flex-1 py-3 border-b-2 border-primary text-primary bg-white transition-all"; 
+            if (tTrans) tTrans.className = !isT ? "flex-1 py-3 border-b-2 border-transparent text-slate-500 hover:bg-slate-100 transition-all" : "flex-1 py-3 border-b-2 border-primary text-primary bg-white transition-all"; 
+            if (tCtrls) tCtrls.style.display = isT ? "grid" : "none"; 
+            if (lblAmt) lblAmt.innerText = isT ? "Amount Transfer/Loan" : "Amount (+ Inc / - Exp)"; 
+            
+            if(isT) {
+                if(btnDel) btnDel.classList.add('hidden'); 
+            } else {
+                if(btnDel) btnDel.classList.remove('hidden'); 
+            }
+        }
+
+        function openEditModal(d_str, i, a, t) { 
+            switchModalTab('standard'); 
+            const tabT = document.getElementById('tab-transfer');
+            if (tabT) tabT.classList.add('hidden'); 
+            
+            if(d_str){
+                const [dd, mm, yy] = d_str.split('/'); 
+                const dEl = document.getElementById('editDate');
+                if (dEl) dEl.value = `${yy}-${mm}-${dd}`;
+            } 
+            
+            const idxEl = document.getElementById('editIndex');
+            const amtEl = document.getElementById('editAmount');
+            const tagEl = document.getElementById('editTags');
+            const modEl = document.getElementById('editModal');
+            
+            if (idxEl) idxEl.value = i; 
+            if (amtEl) amtEl.value = a; 
+            if (tagEl) tagEl.value = t; 
+            if (modEl) modEl.classList.remove('hidden'); 
+        }
+
+        function openAddModal() { 
+            const tabT = document.getElementById('tab-transfer');
+            if (tabT) tabT.classList.remove('hidden'); 
+            switchModalTab('standard'); 
+            
+            const now = new Date(); 
+            const dEl = document.getElementById('editDate');
+            if(dEl) dEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; 
+            
+            const idxEl = document.getElementById('editIndex');
+            const amtEl = document.getElementById('editAmount');
+            const tagEl = document.getElementById('editTags');
+            const fromEl = document.getElementById('transferFrom');
+            const modEl = document.getElementById('editModal');
+
+            if(idxEl) idxEl.value = -1; 
+            if(amtEl) amtEl.value = ''; 
+            if(tagEl) tagEl.value = ''; 
+            if(fromEl) fromEl.value = activeAccountId; 
+            if(modEl) modEl.classList.remove('hidden'); 
+        }
+
+        function closeModal() { 
+            const modEl = document.getElementById('editModal');
+            if (modEl) modEl.classList.add('hidden'); 
+        }
+
+        async function saveEdit() { 
+            const dEl = document.getElementById('editDate');
+            const dRaw = dEl ? dEl.value : null;
+            if(!dRaw) return alert("Date required."); 
+            
+            const [yy, mm, dd] = dRaw.split('-'); 
+            const d = `${dd}/${mm}/${yy}`; 
+            
+            const amtEl = document.getElementById('editAmount');
+            const a = amtEl ? parseFloat(amtEl.value) : 0; 
+            
+            const tagEl = document.getElementById('editTags');
+            const tagsRaw = tagEl ? tagEl.value : '';
+            const t = tagsRaw ? tagsRaw.split(',').map(x=>x.trim()).filter(x=>x) : []; 
+            
+            let res; 
+            if(modalMode === 'transfer') { 
+                const fEl = document.getElementById('transferFrom');
+                const toEl = document.getElementById('transferTo');
+                const from = fEl ? fEl.value : activeAccountId; 
+                const to = toEl ? toEl.value : activeAccountId; 
+                
+                if(from === to) return alert("Cannot transfer to the same account."); 
+                res = await api.add_transfer(d, from, to, a, t); 
+            } else { 
+                const idxEl = document.getElementById('editIndex');
+                const i = idxEl ? parseInt(idxEl.value) : -1; 
+                if (i === -1) {
+                    res = await api.add_transaction(activeAccountId, d, a, t);
+                } else {
+                    res = await api.update_transaction(activeAccountId, d, i, a, t);
+                }
+            } 
+            
+            if(res.status === 'success') { 
+                closeModal(); 
+                await loadAccounts(); 
+                executeQuery(); 
+            } else {
+                showError(res.message); 
+            }
+        }
+
+        async function deleteTransaction() { 
+            if(!confirm("Delete this transaction?")) return; 
+            
+            const dEl = document.getElementById('editDate');
+            if (!dEl) return;
+            const dRaw = dEl.value; 
+            const [yy, mm, dd] = dRaw.split('-'); 
+            
+            const idxEl = document.getElementById('editIndex');
+            const i = idxEl ? parseInt(idxEl.value) : -1;
+
+            const res = await api.delete_transaction(activeAccountId, `${dd}/${mm}/${yy}`, i); 
+            if(res.status==='success') { 
+                closeModal(); 
+                await loadAccounts(); 
+                executeQuery(); 
+            } else {
+                showError(res.message); 
+            }
+        }
+
+        // --- CUSTOM DATE SLIDER ---
+        async function toggleCustomRange() { 
+            const pEl = document.getElementById('presetRange');
+            const isCustom = pEl && pEl.value === 'custom'; 
+            
+            const container = document.getElementById('customRangeContainer'); 
+            if (!container) return;
+
+            if (isCustom) { 
+                container.classList.remove('hidden'); 
+                container.classList.add('flex'); 
+                
+                const bounds = await api.get_date_bounds(activeAccountId); 
+                if(bounds.status !== 'success' || !bounds.start) return; 
+                
+                const parts = bounds.start.split('/'); 
+                boundsStart = new Date(parts[2], parts[1]-1, parts[0]); 
+                const maxDays = bounds.total_days > 0 ? bounds.total_days : 1; 
+                
+                const sStart = document.getElementById('sliderStart');
+                const sEnd = document.getElementById('sliderEnd');
+                
+                if (sStart) sStart.max = maxDays; 
+                if (sEnd) sEnd.max = maxDays; 
+                
+                if(sStart && sEnd && sStart.value == 0 && sEnd.value == 100) {
+                    sEnd.value = maxDays; 
+                }
+                updateSliderUI(); 
+            } else { 
+                container.classList.add('hidden'); 
+                container.classList.remove('flex'); 
+            } 
+        }
+
+        function updateSliderUI() { 
+            const sStart = document.getElementById('sliderStart');
+            const sEnd = document.getElementById('sliderEnd'); 
+            if (!sStart || !sEnd) return;
+
+            let val1 = parseInt(sStart.value);
+            let val2 = parseInt(sEnd.value); 
+            
+            if (val1 > val2) { 
+                let tmp = val1; val1 = val2; val2 = tmp; 
+                sStart.value = val1; sEnd.value = val2; 
+            } 
+            
+            const max = parseInt(sStart.max); 
+            const track = document.getElementById('sliderTrack');
+            if (track) {
+                track.style.left = ((val1/max)*100) + '%'; 
+                track.style.width = (((val2-val1)/max)*100) + '%'; 
+            }
+            
+            if(boundsStart) { 
+                const d1 = new Date(boundsStart); d1.setDate(d1.getDate() + val1); 
+                const d2 = new Date(boundsStart); d2.setDate(d2.getDate() + val2); 
+                
+                const lStart = document.getElementById('sliderLabelStart');
+                const lEnd = document.getElementById('sliderLabelEnd');
+
+                if (lStart) lStart.innerText = `${String(d1.getDate()).padStart(2,'0')}/${String(d1.getMonth()+1).padStart(2,'0')}/${d1.getFullYear()}`; 
+                if (lEnd) lEnd.innerText = `${String(d2.getDate()).padStart(2,'0')}/${String(d2.getMonth()+1).padStart(2,'0')}/${d2.getFullYear()}`; 
+            } 
+        }
+
+        // --- DRAWING FUNCTIONS ---
+        function updateTable(records) { 
+            if(!records) return; 
+            const tbody = document.getElementById('journal-table-body'); 
+            if (!tbody) return;
+            tbody.innerHTML = ''; 
+            
+            records.forEach(rec => { 
+                let transHtml = (rec.transactions||[]).map((t, idx) => { 
+                    const color = t.amount > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'; 
+                    const tagsStr = t.tags && t.tags.length ? '(' + t.tags.join(',') + ')' : '';
+                    return `<button onclick="openEditModal('${rec.date}', ${idx}, ${t.amount}, '${(t.tags||[]).join(', ')}')" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-transparent hover:border-slate-300 ${color} mr-1 mb-1 shadow-sm transition-all">${t.amount} ${tagsStr}</button>`; 
+                }).join(''); 
+                
+                const netColor = rec.net_change >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-4 font-medium whitespace-nowrap">${rec.date} <span class="text-[10px] text-slate-400 uppercase">${rec.day_name}</span></td>
+                        <td class="p-4 text-right font-bold ${netColor}">${rec.net_change.toFixed(2)}</td>
+                        <td class="p-4 min-w-[200px]">${transHtml}</td>
+                    </tr>
+                `; 
+            }); 
+        }
+
+        // --- CHART LIMIT LINES ---
+        async function loadChartLines() { 
+            userChartLines = await api.get_chart_lines(); 
+            if(!userChartLines.balance) userChartLines.balance = []; 
+            if(!userChartLines.main) userChartLines.main = []; 
+            if(!userChartLines.analytics) userChartLines.analytics = []; 
+        }
+
+        function openLinesModal() { 
+            renderLinesConfig('balance', 'balanceLinesContainer'); 
+            renderLinesConfig('main', 'mainLinesContainer'); 
+            renderLinesConfig('analytics', 'analyticsLinesContainer'); 
+            const md = document.getElementById('linesModal');
+            if (md) md.classList.remove('hidden'); 
+        }
+
+        function renderLinesConfig(cT, cId) { 
+            const c = document.getElementById(cId); 
+            if(!c) return;
+
+            if (userChartLines[cT].length === 0) { 
+                c.innerHTML = `<p class="text-xs text-slate-400 italic py-2">No limits.</p>`; 
+                return; 
+            } 
+            
+            c.innerHTML = userChartLines[cT].map((l, i) => `
+                <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-lg">
+                    <input type="text" value="${l.label}" onchange="updateLine('${cT}', ${i}, 'label', this.value)" class="flex-1 text-sm px-2 border rounded">
+                    <input type="number" step="0.01" value="${l.value}" onchange="updateLine('${cT}', ${i}, 'value', this.value)" class="w-24 text-sm px-2 border rounded">
+                    <input type="color" value="${l.color}" onchange="updateLine('${cT}', ${i}, 'color', this.value)" class="w-8">
+                    <button onclick="removeLine('${cT}', ${i})" class="text-rose-500 hover:text-rose-700"><i class="ph ph-trash"></i></button>
+                </div>
+            `).join(''); 
+        }
+
+        function addLine(cT) { 
+            userChartLines[cT].push({ label: 'Limit', value: 0, color: '#f59e0b' }); 
+            renderLinesConfig(cT, cT + 'LinesContainer'); 
+        }
+
+        function updateLine(cT, i, f, v) { userChartLines[cT][i][f] = v; } 
+        function removeLine(cT, i) { userChartLines[cT].splice(i, 1); renderLinesConfig(cT, cT + 'LinesContainer'); }
+        async function saveChartLines() { 
+            await api.save_chart_lines(userChartLines); 
+            const md = document.getElementById('linesModal');
+            if (md) md.classList.add('hidden'); 
+            executeQuery(); 
+        }
+
+        function generateHorizontalLineDataset(lc, aL) { 
+            return { 
+                type: 'line', 
+                label: lc.label || 'Limit', 
+                data: Array(aL).fill(parseFloat(lc.value)), 
+                borderColor: lc.color || '#ef4444', 
+                borderDash: [5, 5], 
+                borderWidth: 2, 
+                pointRadius: 0, 
+                fill: false, 
+                tension: 0 
+            }; 
+        }
+
+        function updateCharts(records, stats) {
+            const r = [...records].reverse(); 
+            if (typeof Chart === 'undefined') return; // Safety check if chart.js failed to load
+            
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            
+            const bD = [{ 
+                label: 'Running Balance', 
+                data: r.map(x => x.historical_balance), 
+                borderColor: '#4f46e5', 
+                backgroundColor: 'rgba(79, 70, 229, 0.15)', 
+                borderWidth: 2, fill: true, tension: 0.3, pointRadius: window.innerWidth < 768 ? 1 : 3 
+            }];
+            const mD = [
+                {label:'Inc', data: r.map(x => x.income), backgroundColor:'#10b981', borderRadius: 4}, 
+                {label:'Exp', data: r.map(x => Math.abs(x.expense)), backgroundColor:'#ef4444', borderRadius: 4}
+            ];
+            
+            userChartLines.balance.forEach(l => bD.push(generateHorizontalLineDataset(l, r.length))); 
+            userChartLines.main.forEach(l => mD.push(generateHorizontalLineDataset(l, r.length)));
+            
+            const balCanvas = document.getElementById('balanceChart');
+            if(balCanvas) {
+                if(balanceChart) balanceChart.destroy(); 
+                balanceChart = new Chart(balCanvas, { 
+                    type: 'line', 
+                    data: { labels: r.map(x => x.date.substring(0,5)), datasets: bD }, 
+                    options: { responsive:true, maintainAspectRatio:false, scales: { y: { suggestedMin: 0, suggestedMax: 0 } }, plugins: {legend: {display: window.innerWidth > 768}} } 
+                });
+            }
+            
+            const mainCanvas = document.getElementById('mainChart');
+            if (mainCanvas) {
+                if(mainChart) mainChart.destroy(); 
+                mainChart = new Chart(mainCanvas, { 
+                    type: 'bar', 
+                    data: { labels: r.map(x => x.date.substring(0,5)), datasets: mD }, 
+                    options: { responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true}, y:{stacked:false}}, plugins: {legend: {position: 'top'}} } 
+                });
+            }
+            
+            const pieCanvas = document.getElementById('pieChart');
+            if (pieCanvas && stats && stats.tag_breakdown) {
+                if(pieChart) pieChart.destroy(); 
+                const t5 = Object.fromEntries(Object.entries(stats.tag_breakdown).slice(0,5)); 
+                pieChart = new Chart(pieCanvas, { 
+                    type: 'doughnut', 
+                    data: { labels: Object.keys(t5), datasets: [{ data: Object.values(t5), backgroundColor:['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#64748b'] }] }, 
+                    options: { responsive:true, maintainAspectRatio:false, cutout:'70%', plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right' } } } 
+                });
+            }
+            
+            let cI = 0; let cE = 0; 
+            const aD = [ 
+                { label: 'Cum Income', data: r.map(x => { cI += x.income; return cI; }), borderColor: '#10b981', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false }, 
+                { label: 'Cum Expense', data: r.map(x => { cE += Math.abs(x.expense); return cE; }), borderColor: '#ef4444', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false } 
+            ];
+            userChartLines.analytics.forEach(l => aD.push(generateHorizontalLineDataset(l, r.length)));
+            
+            const anTrCanvas = document.getElementById('analyticsTrendChart');
+            if (anTrCanvas) {
+                if(analyticsTrendChart) analyticsTrendChart.destroy(); 
+                analyticsTrendChart = new Chart(anTrCanvas, { 
+                    type: 'line', 
+                    data: { labels: r.map(x => x.date.substring(0,5)), datasets: aD }, 
+                    options: { responsive:true, maintainAspectRatio:false, interaction: { mode: 'index', intersect: false } } 
+                });
+            }
+            
+            const anTgCanvas = document.getElementById('analyticsTagChart');
+            if (anTgCanvas && stats && stats.tag_breakdown) {
+                if(analyticsTagChart) analyticsTagChart.destroy(); 
+                analyticsTagChart = new Chart(anTgCanvas, { 
+                    type: 'bar', 
+                    data: { labels: Object.keys(stats.tag_breakdown), datasets: [{ label: 'Spent', data: Object.values(stats.tag_breakdown), backgroundColor: '#3b82f6', borderRadius: 4 }] }, 
+                    options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y' } 
+                });
+            }
+        }
+
+        // --- MISC EXPORTS / DRIVE / UI ---
+        async function downloadExcelCSV() { 
+            const res = await api.export_csv(activeAccountId, lastAppliedQuery); 
+            if (res.status === 'success') { 
+                const blob = new Blob(["\uFEFF" + res.csv_data], { type: 'text/csv;charset=utf-8;' }); 
+                const link = document.createElement("a"); 
+                const url = URL.createObjectURL(blob); 
+                link.setAttribute("href", url); 
+                link.setAttribute("download", `${allAccounts[activeAccountId].name}_Export_${new Date().toISOString().split('T')[0]}.csv`); 
+                link.style.visibility = 'hidden'; 
+                document.body.appendChild(link); 
+                link.click(); 
+                document.body.removeChild(link); 
+            } else { 
+                showError("Export Failed"); 
+            } 
+        }
+
+        function downloadChart(cId, n) { 
+            const c = document.getElementById(cId); 
+            if(!c) return;
+            const t = document.createElement('canvas'); 
+            t.width = c.width; t.height = c.height; 
+            const ctx = t.getContext('2d'); 
+            ctx.fillStyle = '#fff'; 
+            ctx.fillRect(0,0,t.width,t.height); 
+            ctx.drawImage(c,0,0); 
+            const l = document.createElement('a'); 
+            l.download = `${n}_${new Date().toISOString().split('T')[0]}.png`; 
+            l.href = t.toDataURL('image/png',1.0); 
+            l.click(); 
         }
 
         function switchTab(id) { 
-            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); document.getElementById(id + '-view').classList.remove('hidden'); 
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav')); document.getElementById('nav-' + id).classList.add('active-nav'); 
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); 
+            const view = document.getElementById(id + '-view');
+            if (view) view.classList.remove('hidden'); 
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-nav')); 
+            const nav = document.getElementById('nav-' + id);
+            if(nav) nav.classList.add('active-nav'); 
+            
             if(window.innerWidth < 768) toggleSidebar(); 
-            if(id === 'settings') loadSettings(); 
         }
 
-        function extractQuery() {
-            const rangeVal = document.getElementById('presetRange').value; const userText = document.getElementById('queryInput').value.trim(); const now = new Date(); const fmt = (d) => { const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); return `${dd}/${mm}/${d.getFullYear()}`; };
-            let dateQuery = ""; let badgeText = "All Time";
-            if (rangeVal === 'custom') { const lblStart = document.getElementById('sliderLabelStart').innerText; const lblEnd = document.getElementById('sliderLabelEnd').innerText; dateQuery = `date >= ${lblStart} and date <= ${lblEnd}`; badgeText = `${lblStart} - ${lblEnd}`; }
-            else if (rangeVal === 'this_week') { const dayOfWeek = now.getDay(); const numDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; const start = new Date(now); start.setDate(now.getDate() - numDay); const end = new Date(start); end.setDate(start.getDate() + 6); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "Current Week"; }
-            else if (rangeVal === 'this_month') { const start = new Date(now.getFullYear(), now.getMonth(), 1); const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "This Month"; }
-            else if (rangeVal === 'last_month') { const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); const end = new Date(now.getFullYear(), now.getMonth(), 0); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "Last Month"; }
-            else if (rangeVal === 'this_year') { const start = new Date(now.getFullYear(), 0, 1); const end = new Date(now.getFullYear(), 11, 31); dateQuery = `date >= ${fmt(start)} and date <= ${fmt(end)}`; badgeText = "This Year"; }
-            let finalQuery = ""; if (dateQuery && userText) finalQuery = `(${dateQuery}) and (${userText})`; else if (dateQuery) finalQuery = dateQuery; else if (userText) finalQuery = userText;
-            return { query: finalQuery, badge: badgeText };
+        async function get_drive_config(){ 
+            driveConfig = await api.get_drive_settings(); 
+            const dtg = document.getElementById('driveToggle');
+            const ds = document.getElementById('driveSettings');
+            if (dtg) dtg.checked = driveConfig.enabled; 
+            if (ds) ds.classList.toggle('hidden', !driveConfig.enabled); 
         }
 
-        async function executeQuery() {
-            const extraction = extractQuery(); lastAppliedQuery = extraction.query; document.getElementById('date-range-badge').innerText = extraction.badge;
-            const data = await api.get_dashboard_data(lastAppliedQuery);
-            if(data.status !== 'error') {
-                document.getElementById('global-balance').innerText = data.global_balance.toFixed(2);
-                updateStats(data.stats); updateTable(data.records); updateCharts(data.records, data.stats);
+        async function toggleDrive() { 
+            const chk = document.getElementById('driveToggle').checked;
+            const res = await api.save_drive_settings(chk, document.getElementById('driveCreds').value, document.getElementById('driveToken').value); 
+            
+            const ds = document.getElementById('driveSettings');
+            const dtg = document.getElementById('driveToggle');
+
+            if(res.status === 'error') { 
+                alert("Drive Error: " + res.message); 
+                if (dtg) dtg.checked = false; 
+                if (ds) ds.classList.add('hidden'); 
+            } else { 
+                if (ds) ds.classList.toggle('hidden', !chk); 
+                alert("Settings Saved"); 
+            } 
+        }
+
+        async function drivePush() { 
+            const btn = event.target; 
+            const txt = btn.innerText; 
+            btn.innerText = "Backing up DB..."; 
+            btn.disabled=true; 
+            
+            const res = await api.drive_push(); 
+            alert(res.message); 
+            
+            if(res.status==='success') {
+                const ls = document.getElementById('driveLastSync');
+                if (ls) ls.innerText = "Last Synced: " + res.last_synced; 
+            }
+            btn.innerText = txt; 
+            btn.disabled=false; 
+        }
+
+        async function openDriveModal() { 
+            const dm = document.getElementById('driveModal');
+            if(dm) dm.classList.remove('hidden'); 
+            
+            const lst = document.getElementById('driveVersionsList');
+            if (lst) lst.innerHTML = '<tr><td colspan="2" class="p-4 text-center">Loading...</td></tr>'; 
+            
+            const res = await api.drive_list_versions(); 
+            if(res.status==='error') { 
+                if (lst) lst.innerHTML = `<tr><td colspan="2" class="p-4 text-red-500">${res.message}</td></tr>`; 
+                return; 
+            } 
+            if(lst) lst.innerHTML = res.files.map(f => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-medium text-xs break-all">${f.name}<br><span class="text-slate-400 font-normal">${new Date(f.createdTime).toLocaleString()}</span></td>
+                    <td class="p-3 text-right gap-2 flex justify-end">
+                        <button onclick="previewDrive('${f.id}')" class="text-blue-600 font-medium">Prev</button> 
+                        <button onclick="applyDrive('${f.id}')" class="text-emerald-600 font-medium border border-emerald-200 px-2 rounded">Use</button>
+                    </td>
+                </tr>
+            `).join(''); 
+        }
+
+        async function previewDrive(fid) { 
+            const pb = document.getElementById('drivePreviewBox');
+            if (pb) pb.innerText = "Downloading DB..."; 
+            
+            const res = await api.drive_preview_version(fid); 
+            if(res.status === 'success') {
+                if(pb) pb.innerText = res.preview; 
+            } else {
+                alert(res.message); 
             }
         }
 
-        // --- EXPORTS ---
-        async function downloadExcelCSV() { const res = await api.export_csv(lastAppliedQuery); if (res.status === 'success') { const blob = new Blob(["\uFEFF" + res.csv_data], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `mLoger_Export_${new Date().toISOString().split('T')[0]}.csv`); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link); } else { alert("Export Failed: " + res.message); } }
-        function downloadChart(chartCanvasId, filename) { const canvas = document.getElementById(chartCanvasId); const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const ctx = tempCanvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); ctx.drawImage(canvas, 0, 0); const link = document.createElement('a'); link.download = `${filename}_${new Date().toISOString().split('T')[0]}.png`; link.href = tempCanvas.toDataURL('image/png', 1.0); link.click(); }
-
-        // --- UI DRAWING ---
-        function updateStats(stats) { document.getElementById('stat-income').innerText = "+" + stats.total_income.toFixed(2); document.getElementById('stat-expense').innerText = stats.total_expense.toFixed(2); document.getElementById('stat-net').innerText = stats.net_savings.toFixed(2); }
-        function updateTable(records) { const tbody = document.getElementById('journal-table-body'); tbody.innerHTML = ''; records.forEach(rec => { let transHtml = rec.transactions.map((t, idx) => { const color = t.amount > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'; return `<button onclick="openEditModal('${rec.date}', ${idx}, ${t.amount}, '${t.tags.join(', ')}')" class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-transparent hover:border-slate-300 ${color} mr-1 mb-1 shadow-sm transition-all">${t.amount} ${t.tags.length ? '('+t.tags.join(',')+')' : ''}</button>`; }).join(''); tbody.innerHTML += `<tr class="hover:bg-slate-50 transition-colors"><td class="p-4 font-medium whitespace-nowrap">${rec.date} <span class="text-[10px] text-slate-400 uppercase">${rec.day_name}</span></td><td class="p-4 text-right font-bold ${rec.net_change >=0?'text-emerald-600':'text-rose-600'}">${rec.net_change.toFixed(2)}</td><td class="p-4 min-w-[200px]">${transHtml}</td></tr>`; }); }
-
-        function updateCharts(records, stats) {
-            const r = [...records].reverse(); Chart.defaults.font.family = "'Inter', sans-serif";
-            const balanceDatasets = [{ label: 'Running Balance', data: r.map(x => x.historical_balance), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.15)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: window.innerWidth < 768 ? 1 : 3 }];
-            const mainDatasets = [{label:'Inc', data: r.map(x => x.income), backgroundColor:'#10b981', borderRadius: 4}, {label:'Exp', data: r.map(x => Math.abs(x.expense)), backgroundColor:'#ef4444', borderRadius: 4}];
-            userChartLines.balance.forEach(line => balanceDatasets.push(generateHorizontalLineDataset(line, r.length)));
-            userChartLines.main.forEach(line => mainDatasets.push(generateHorizontalLineDataset(line, r.length)));
-
-            if(balanceChart) balanceChart.destroy();
-            balanceChart = new Chart(document.getElementById('balanceChart'), { type: 'line', data: { labels: r.map(x => x.date.substring(0,5)), datasets: balanceDatasets }, options: { responsive:true, maintainAspectRatio:false, scales: { y: { suggestedMin: 0, suggestedMax: 0 } }, plugins: {legend: {display: window.innerWidth > 768}} } });
-
-            if(mainChart) mainChart.destroy();
-            mainChart = new Chart(document.getElementById('mainChart'), { type: 'bar', data: { labels: r.map(x => x.date.substring(0,5)), datasets: mainDatasets }, options: { responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true}, y:{stacked:false}}, plugins: {legend: {position: 'top'}} } });
+        async function applyDrive(fid) { 
+            if(!confirm("Overwrite local Database with cloud backup?")) return; 
+            const res = await api.drive_apply_version(fid); 
+            alert(res.message); 
             
-            if(pieChart) pieChart.destroy();
-            const top5Stats = Object.fromEntries(Object.entries(stats.tag_breakdown).slice(0,5));
-            pieChart = new Chart(document.getElementById('pieChart'), { type: 'doughnut', data: { labels: Object.keys(top5Stats), datasets: [{ data: Object.values(top5Stats), backgroundColor:['#ef4444','#f59e0b','#3b82f6','#8b5cf6','#64748b'] }] }, options: { responsive:true, maintainAspectRatio:false, cutout:'70%', plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right' } } } });
-
-            let cumInc = 0; let cumExp = 0;
-            const analyticsDatasets = [ { label: 'Cumulative Income', data: r.map(x => { cumInc += x.income; return cumInc; }), borderColor: '#10b981', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false }, { label: 'Cumulative Expense', data: r.map(x => { cumExp += Math.abs(x.expense); return cumExp; }), borderColor: '#ef4444', borderWidth: 2, tension: 0.4, pointRadius:0, fill:false } ];
-            userChartLines.analytics.forEach(line => analyticsDatasets.push(generateHorizontalLineDataset(line, r.length)));
-
-            if(analyticsTrendChart) analyticsTrendChart.destroy();
-            analyticsTrendChart = new Chart(document.getElementById('analyticsTrendChart'), { type: 'line', data: { labels: r.map(x => x.date.substring(0,5)), datasets: analyticsDatasets }, options: { responsive:true, maintainAspectRatio:false, interaction: { mode: 'index', intersect: false } } });
-
-            if(analyticsTagChart) analyticsTagChart.destroy();
-            analyticsTagChart = new Chart(document.getElementById('analyticsTagChart'), { type: 'bar', data: { labels: Object.keys(stats.tag_breakdown), datasets: [{ label: 'Spent', data: Object.values(stats.tag_breakdown), backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { responsive:true, maintainAspectRatio:false, indexAxis: 'y' } });
+            const dm = document.getElementById('driveModal');
+            if (dm) dm.classList.add('hidden'); 
+            
+            // Re-render
+            await loadAccounts(); 
+            await executeQuery(); 
         }
 
-        // --- DATA MODALS ---
-        function openEditModal(d_str, i, a, t) { if(d_str){const [dd, mm, yy] = d_str.split('/'); document.getElementById('editDate').value = `${yy}-${mm}-${dd}`;} document.getElementById('editIndex').value = i; document.getElementById('editAmount').value = a; document.getElementById('editTags').value = t; document.getElementById('editModal').classList.remove('hidden'); }
-        function openAddModal() { const now = new Date(); document.getElementById('editDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; document.getElementById('editIndex').value = -1; document.getElementById('editAmount').value = ''; document.getElementById('editTags').value = ''; document.getElementById('editModal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('editModal').classList.add('hidden'); }
-        async function saveEdit() { const dRaw = document.getElementById('editDate').value; if(!dRaw) return alert("Please specify a date."); const [yy, mm, dd] = dRaw.split('-'); const res = await (parseInt(document.getElementById('editIndex').value) === -1 ? api.add_transaction(`${dd}/${mm}/${yy}`, parseFloat(document.getElementById('editAmount').value), document.getElementById('editTags').value.split(',').map(x=>x.trim()).filter(x=>x)) : api.update_transaction(`${dd}/${mm}/${yy}`, parseInt(document.getElementById('editIndex').value), parseFloat(document.getElementById('editAmount').value), document.getElementById('editTags').value.split(',').map(x=>x.trim()).filter(x=>x))); if(res.status==='success') { closeModal(); executeQuery(); } else alert(res.message); }
-        async function deleteTransaction() { if(!confirm("Delete?")) return; const dRaw = document.getElementById('editDate').value; const [yy, mm, dd] = dRaw.split('-'); const res = await api.delete_transaction(`${dd}/${mm}/${yy}`, parseInt(document.getElementById('editIndex').value)); if(res.status==='success') { closeModal(); executeQuery(); } else alert(res.message); }
-
-        // --- SETTINGS ---
-        async function loadSettings() { const sources = await api.get_sources(); document.getElementById('sourcesList').innerHTML = sources.map(s => `<li class="flex justify-between bg-slate-50 p-2 rounded text-xs border border-slate-100"><span>${s}</span><button onclick="removeSource('${s}')" class="text-rose-500"><i class="ph ph-trash"></i></button></li>`).join(''); }
-        async function scanLan() { const btn=document.getElementById('scanBtn'); btn.innerHTML='<i class="ph ph-spinner animate-spin"></i>'; const res = await api.scan_network_and_sync(); alert(res.message); loadSettings(); executeQuery(); btn.innerHTML='<i class="ph ph-radar"></i> Scan'; }
-        async function addSource() { await api.add_source(document.getElementById('newSourceUrl').value); loadSettings(); }
-        async function removeSource(u) { await api.remove_source(u); loadSettings(); }
-        async function syncAll() { const r = await api.sync_all_sources(); alert(r.join('\n')); executeQuery(); }
-
+        // --- INIT ---
         document.addEventListener('DOMContentLoaded', async function() { 
             await loadChartLines(); 
             get_drive_config(); 
+            await loadAccounts();
             executeQuery(); 
         });
     </script>

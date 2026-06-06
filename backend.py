@@ -3,8 +3,6 @@ import os
 import json
 import shutil
 import socket
-import concurrent.futures
-import requests
 import io
 import csv
 import datetime
@@ -72,7 +70,7 @@ class DailyRecord:
 
 class QueryParser:
     def compile_query(self, query: str):
-        if not query or not query.strip(): return None
+        if not query or not query.strip() or "..." in query: return None
         q = query
         def repl_date(m):
             d, m_month, y = m.group(1).split('/')
@@ -133,9 +131,9 @@ class DriveManager:
     def upload_file(self, filepath):
         if not self.service: self.authenticate()
         folder_id = self._get_folder_id()
-        name = f"cache_{dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+        name = f"DB_Dump_{dt.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
         file_metadata = {'name': name, 'parents': [folder_id]}
-        media = MediaFileUpload(filepath, mimetype='text/plain')
+        media = MediaFileUpload(filepath, mimetype='application/json')
         file = self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         return file.get('id'), name
 
@@ -155,24 +153,111 @@ class DriveManager:
         return file_io.getvalue().decode('utf-8')
 
 class ExpenseManager:
-    def __init__(self, filepath="cache.txt"):
-        self.filepath = filepath
-        self.records: Dict[date, DailyRecord] = {}
+    def __init__(self):
+        self.records = {}
         self.query_engine = QueryParser()
         self.settings = self._load_settings()
         
         if not os.path.exists(BACKUP_DIR): os.makedirs(BACKUP_DIR)
-        if os.path.exists(filepath): self.reload_from_file()
+        self.reload_all()
         
         self.drive_mgr = None
         if self.settings.get('drive_enabled'): self._init_drive()
 
+    def _load_settings(self):
+        settings = {"accounts": {}, "chart_lines": {"balance": [], "main": [], "analytics": []}, "drive_enabled": False}
+        if os.path.exists(SETTINGS_FILE):
+            try: 
+                with open(SETTINGS_FILE, 'r') as f: 
+                    loaded = json.load(f)
+                    settings.update(loaded)
+            except: pass
+        
+        # Migrate or create default account if none exists
+        if not settings["accounts"]:
+            settings["accounts"]["main"] = {"name": "Main Wallet", "type": "wallet", "file": "cache.txt"}
+            self._save_settings_raw(settings)
+            
+        return settings
+
+    def _save_settings_raw(self, data):
+        with open(SETTINGS_FILE, 'w') as f: json.dump(data, f, indent=4)
+        
+    def _save_settings(self):
+        self._save_settings_raw(self.settings)
+
+    def reload_all(self):
+        self.records = {}
+        for acc_id, acc_info in self.settings["accounts"].items():
+            self.records[acc_id] = self._read_file(acc_info["file"])
+        return {"status": "success"}
+
+    def _read_file(self, filepath) -> Dict[date, DailyRecord]:
+        recs = {}
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                for line in f:
+                    r = self._parse_line(line)
+                    if r: recs[r.date] = r
+        return recs
+
+    def save_to_file(self, acc_id, backup=True):
+        if acc_id not in self.settings["accounts"]: return {"status": "error"}
+        filepath = self.settings["accounts"][acc_id]["file"]
+        
+        if backup and os.path.exists(filepath):
+            timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+            shutil.copy(filepath, os.path.join(BACKUP_DIR, f"{acc_id}_{timestamp}.txt"))
+            
+        with open(filepath, "w", encoding="utf-8") as f:
+            for rec in sorted(self.records.get(acc_id, {}).values(), key=lambda r: r.date):
+                f.write(rec.to_file_line() + "\n")
+        return {"status": "success"}
+
+    def get_accounts_summary(self):
+        summary = {}
+        for acc_id, acc_info in self.settings["accounts"].items():
+            recs = self.records.get(acc_id, {})
+            bal = sum(r.total_change for r in recs.values())
+            summary[acc_id] = {
+                "name": acc_info["name"],
+                "type": acc_info["type"],
+                "balance": round(bal, 2)
+            }
+        return {"status": "success", "accounts": summary}
+
+    def create_account(self, name: str, acc_type: str):
+        if not name or not name.strip(): return {"status": "error", "message": "Invalid name"}
+        acc_id = re.sub(r'[^a-zA-Z0-9]', '', name).lower() + str(int(dt.now().timestamp()))
+        filename = f"acc_{acc_id}.txt"
+        
+        self.settings["accounts"][acc_id] = {"name": name.strip(), "type": acc_type, "file": filename}
+        self.records[acc_id] = {}
+        self.save_to_file(acc_id, backup=False)
+        self._save_settings()
+        return {"status": "success", "account_id": acc_id}
+
+    def add_transfer(self, date_str: str, from_acc: str, to_acc: str, amount: float, tags: List[str]):
+        try:
+            amt = abs(float(amount))
+            if amt == 0: return {"status": "error", "message": "Amount must be > 0"}
+            from_name = self.settings['accounts'][from_acc]['name']
+            to_name = self.settings['accounts'][to_acc]['name']
+            
+            self.add_transaction(from_acc, date_str, -amt, tags + [f"To {to_name}"])
+            self.add_transaction(to_acc, date_str, amt, tags + [f"From {from_name}"])
+            return {"status": "success"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # --- Drive Sync ---
     def _init_drive(self):
         creds = self.settings.get('drive_creds_path', 'credentials.json')
         token = self.settings.get('drive_token_path', 'token.json')
         self.drive_mgr = DriveManager(creds, token)
 
     def get_drive_settings(self): return {"enabled":self.settings['drive_enabled']}
+    
     def save_drive_settings(self, enabled, creds_path, token_path):
         self.settings['drive_enabled'] = enabled
         self.settings['drive_creds_path'] = creds_path
@@ -192,11 +277,21 @@ class ExpenseManager:
     def drive_push(self):
         if not self.drive_mgr: return {"status": "error", "message": "Drive not enabled"}
         try:
-            self.save_to_file()
-            fid, name = self.drive_mgr.upload_file(self.filepath)
+            dump = {"settings": self.settings, "files": {}}
+            for acc in self.settings['accounts'].values():
+                if os.path.exists(acc['file']):
+                    with open(acc['file'], 'r', encoding='utf-8') as f:
+                        dump["files"][acc['file']] = f.read()
+            
+            temp_path = f"temp_sync_{dt.now().timestamp()}.json"
+            with open(temp_path, 'w', encoding='utf-8') as f: json.dump(dump, f)
+            
+            fid, name = self.drive_mgr.upload_file(temp_path)
+            os.remove(temp_path)
+            
             self.settings['last_synced'] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             self._save_settings()
-            return {"status": "success", "message": f"Uploaded {name}", "last_synced": self.settings['last_synced']}
+            return {"status": "success", "message": f"Database Backup Uploaded", "last_synced": self.settings['last_synced']}
         except Exception as e: return {"status": "error", "message": str(e)}
 
     def drive_list_versions(self):
@@ -208,119 +303,35 @@ class ExpenseManager:
         if not self.drive_mgr: return {"status": "error", "message": "Drive not enabled"}
         try:
             content = self.drive_mgr.download_content(file_id)
-            lines = content.splitlines()
-            count = sum(1 for l in lines if self._parse_line(l))
-            preview_text = f"Records: {count}\nFirst 5 lines:\n" + "\n".join(lines[:5])
-            return {"status": "success", "content": content, "preview": preview_text}
+            try:
+                data = json.loads(content)
+                accs = len(data.get("accounts", {}))
+                return {"status": "success", "preview": f"Complete Multi-Account DB Dump\nAccounts: {accs}"}
+            except:
+                lines = content.splitlines()
+                return {"status": "success", "preview": f"Legacy Single-File Backup\nFirst 3 lines:\n" + "\n".join(lines[:3])}
         except Exception as e: return {"status": "error", "message": str(e)}
 
     def drive_apply_version(self, file_id):
         if not self.drive_mgr: return {"status": "error", "message": "Drive not enabled"}
         try:
-            self.create_backup("predrive_restore")
             content = self.drive_mgr.download_content(file_id)
-            with open(self.filepath, 'w', encoding='utf-8') as f: f.write(content)
-            self.reload_from_file()
+            try:
+                data = json.loads(content)
+                self.settings = data["settings"]
+                self._save_settings()
+                for filename, fcontent in data.get("files", {}).items():
+                    with open(filename, 'w', encoding='utf-8') as f: f.write(fcontent)
+            except json.JSONDecodeError:
+                with open("cache.txt", 'w', encoding='utf-8') as f: f.write(content)
+                
+            self.reload_all()
             self.settings['last_synced'] = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             self._save_settings()
-            return {"status": "success", "message": "Version applied"}
+            return {"status": "success", "message": "Backup Applied!"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
-    def scan_network_and_sync(self):
-        try:
-            discovered_url = self.get_source_url()
-            messages = []
-            if discovered_url:
-                messages.append(f"Found Server: {discovered_url}")
-                if discovered_url not in self.settings["sources"]:
-                    self.add_source(discovered_url)
-                    messages.append("Added to sources list.")
-            else: messages.append("No local server found.")
-            messages.extend(self.sync_all_sources())
-            return {"status": "success", "message": "\n".join(messages)}
-        except Exception as e: return {"status": "error", "message": str(e)}
-
-    def get_local_ip(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try: s.connect(('10.255.255.255', 1)); IP = s.getsockname()[0]
-        except Exception: IP = '127.0.0.1'
-        finally: s.close()
-        return IP
-
-    def _check_server(self, ip):
-        url = f"http://{ip}:5000/data/cache.txt"
-        try: requests.head(url, timeout=0.2); return url
-        except: return None
-
-    def get_source_url(self):
-        local_ip = self.get_local_ip()
-        if local_ip == '127.0.0.1': return None
-        base_ip = ".".join(local_ip.split(".")[:-1])
-        ips = [f"{base_ip}.{i}" for i in range(1, 255)]
-        found_url = None
-        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-            for url in executor.map(self._check_server, ips):
-                if url: found_url = url; break 
-        return found_url
-
-    def _load_settings(self):
-        if os.path.exists(SETTINGS_FILE):
-            try: 
-                with open(SETTINGS_FILE, 'r') as f: return json.load(f)
-            except: pass
-        return {
-            "sources": [], 
-            "auto_fetch": True, 
-            "drive_enabled": False,
-            "chart_lines": {"balance": [], "main": [], "analytics": []}
-        }
-
-    def _save_settings(self):
-        with open(SETTINGS_FILE, 'w') as f: json.dump(self.settings, f, indent=4)
-
-    def add_source(self, url: str):
-        if url not in self.settings["sources"]: self.settings["sources"].append(url); self._save_settings()
-        return self.settings["sources"]
-    def remove_source(self, url: str):
-        if url in self.settings["sources"]: self.settings["sources"].remove(url); self._save_settings()
-        return self.settings["sources"]
-    def get_sources(self): return self.settings["sources"]
-
-    def get_chart_lines(self): return self.settings.get("chart_lines", {"balance": [], "main": [], "analytics": []})
-    def save_chart_lines(self, lines_data):
-        self.settings["chart_lines"] = lines_data
-        self._save_settings()
-        return {"status": "success"}
-
-    def sync_all_sources(self):
-        results = []
-        for src in self.settings["sources"]:
-            res = self.fetch_and_merge(src)
-            status = "Updated" if res.get("updated", 0) > 0 else "No new data"
-            if res.get("status") == "error": status = f"Error: {res.get('message')}"
-            results.append(f"{src}: {status}")
-        return results
-
-    def create_backup(self, reason="manual"):
-        if not os.path.exists(self.filepath): return
-        timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"cache_{timestamp}_{reason}.txt"
-        shutil.copy(self.filepath, os.path.join(BACKUP_DIR, backup_name))
-        return backup_name
-
-    def get_backups(self):
-        if not os.path.exists(BACKUP_DIR): return []
-        return sorted(os.listdir(BACKUP_DIR), reverse=True)[:10]
-
-    def restore_backup(self, backup_filename):
-        src = os.path.join(BACKUP_DIR, backup_filename)
-        if os.path.exists(src):
-            self.create_backup("prerestore")
-            shutil.copy(src, self.filepath)
-            self.reload_from_file()
-            return {"status": "success", "message": f"Restored {backup_filename}"}
-        return {"status": "error", "message": "Backup file not found"}
-
+    # --- Transactions ---
     def _parse_line(self, line: str) -> Optional[DailyRecord]:
         line = line.strip()
         if not line or line.startswith("//") or line.startswith("#"): return None
@@ -333,7 +344,6 @@ class ExpenseManager:
             if not d_match: return None
             rec_date = dt.strptime(d_match.group(1), TIME_FORMAT).date()
             balance = float(balance_part.strip()) if balance_part.strip() else None
-            
             transactions = []
             for match in re.finditer(r"(?P<amt>[+\-]?\s*\d+(?:\.\d+)?)\s*(?:\((?P<tags>[^)]*)\))?", trans_part):
                 amount_val = float(match.group("amt").replace(" ", ""))
@@ -342,83 +352,65 @@ class ExpenseManager:
             return DailyRecord(rec_date, balance, transactions)
         except Exception: return None
 
-    def reload_from_file(self):
-        self.records = {}
-        if not os.path.exists(self.filepath): return
-        with open(self.filepath, "r", encoding="utf-8") as f:
-            for line in f:
-                rec = self._parse_line(line)
-                if rec: self.records[rec.date] = rec
-        return {"status": "success"}
-
-    def save_to_file(self, backup=True):
-        if backup: self.create_backup("autosave")
-        with open(self.filepath, "w", encoding="utf-8") as f:
-            for rec in sorted(self.records.values(), key=lambda r: r.date):
-                f.write(rec.to_file_line() + "\n")
-        return {"status": "success"}
-
-    def update_transaction(self, date_str: str, trans_index: int, amount: float, tags: List[str]):
+    def update_transaction(self, acc_id: str, date_str: str, trans_index: int, amount: float, tags: List[str]):
         try:
+            if acc_id not in self.records: return {"status": "error", "message": "Account missing"}
             target_date = dt.strptime(date_str, TIME_FORMAT).date()
-            if target_date not in self.records: return {"status": "error", "message": "Date not found"}
-            record = self.records[target_date]
+            if target_date not in self.records[acc_id]: return {"status": "error", "message": "Date not found"}
+            record = self.records[acc_id][target_date]
             if trans_index < 0 or trans_index >= len(record.transactions): return {"status": "error", "message": "Idx out of bounds"}
             record.transactions[trans_index] = Transaction(amount, tags)
-            self.save_to_file()
+            self.save_to_file(acc_id)
             return {"status": "success"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
-    def add_transaction(self, date_str: str, amount: float, tags: List[str]):
+    def add_transaction(self, acc_id: str, date_str: str, amount: float, tags: List[str]):
         try:
+            if acc_id not in self.records: return {"status": "error", "message": "Account missing"}
             target_date = dt.strptime(date_str, TIME_FORMAT).date()
-            if target_date not in self.records: self.records[target_date] = DailyRecord(target_date, None, [])
-            self.records[target_date].transactions.append(Transaction(amount, tags))
-            self.save_to_file()
+            if target_date not in self.records[acc_id]: self.records[acc_id][target_date] = DailyRecord(target_date, None, [])
+            self.records[acc_id][target_date].transactions.append(Transaction(amount, tags))
+            self.save_to_file(acc_id)
             return {"status": "success"}
         except Exception as e: return {"status": "error", "message": str(e)}
             
-    def delete_transaction(self, date_str: str, trans_index: int):
+    def delete_transaction(self, acc_id: str, date_str: str, trans_index: int):
         try:
+            if acc_id not in self.records: return {"status": "error", "message": "Account missing"}
             target_date = dt.strptime(date_str, TIME_FORMAT).date()
-            if target_date in self.records and 0 <= trans_index < len(self.records[target_date].transactions):
-                self.records[target_date].transactions.pop(trans_index)
-                self.save_to_file()
+            if target_date in self.records[acc_id] and 0 <= trans_index < len(self.records[acc_id][target_date].transactions):
+                self.records[acc_id][target_date].transactions.pop(trans_index)
+                self.save_to_file(acc_id)
                 return {"status": "success"}
             return {"status": "error", "message": "Record not found"}
         except Exception as e: return {"status": "error", "message": str(e)}
 
-    def fetch_and_merge(self, source: str):
-        lines = []
-        if source.startswith("http"):
-            try: lines = requests.get(source, timeout=2).text.splitlines()
-            except Exception as e: return {"status": "error", "message": str(e)}
-        elif os.path.exists(source):
-            with open(source, "r", encoding="utf-8") as f: lines = f.readlines()
-        else: return {"status": "error", "message": "Source not found"}
-        
-        updated = 0
-        for line in lines:
-            rec = self._parse_line(line)
-            if rec: self.records[rec.date] = rec; updated += 1
-        self.save_to_file()
-        return {"status": "success", "updated": updated, "message": f"Merged {updated} records"}
+    # --- Dashboards ---
+    def get_chart_lines(self): return self.settings.get("chart_lines", {"balance": [], "main": [], "analytics": []})
+    
+    def save_chart_lines(self, lines_data):
+        self.settings["chart_lines"] = lines_data
+        self._save_settings()
+        return {"status": "success"}
 
-    def get_date_bounds(self) -> Dict[str, Any]:
-        if not self.records:
+    def get_date_bounds(self, acc_id: str) -> Dict[str, Any]:
+        recs = self.records.get(acc_id, {})
+        if not recs:
             today = date.today().strftime(TIME_FORMAT)
-            return {"start": today, "end": today, "total_days": 0}
-        sorted_dates = sorted(self.records.keys())
+            return {"status": "success", "start": today, "end": today, "total_days": 0}
+        sorted_dates = sorted(recs.keys())
         start_date = sorted_dates[0]
         end_date = max(sorted_dates[-1], date.today()) 
         return {
+            "status": "success",
             "start": start_date.strftime(TIME_FORMAT),
             "end": end_date.strftime(TIME_FORMAT),
             "total_days": (end_date - start_date).days
         }
 
-    def _get_filtered_records(self, filter_query: str) -> List[Tuple[DailyRecord, float]]:
-        sorted_recs = sorted(self.records.values(), key=lambda r: r.date)
+    def _get_filtered_records(self, acc_id: str, filter_query: str) -> List[Tuple[DailyRecord, float]]:
+        recs = self.records.get(acc_id, {})
+        sorted_recs = sorted(recs.values(), key=lambda r: r.date)
         running_bal = 0
         day_balances = {}
         for rec in sorted_recs:
@@ -440,46 +432,53 @@ class ExpenseManager:
                 result.append((temp_rec, day_balances[rec.date]))
         return result
 
-    def get_dashboard_data(self, filter_query: str = "") -> Dict[str, Any]:
-        filtered = self._get_filtered_records(filter_query)
-        records_out = []
-        for rec, hist_bal in reversed(filtered):
-            d = rec.to_dict()
-            d['historical_balance'] = hist_bal
-            records_out.append(d)
-
-        total_income = 0
-        total_expense = 0
-        tag_spending = defaultdict(float)
-        trans_count = 0
+    def get_dashboard_data(self, acc_id: str, filter_query: str = "") -> Dict[str, Any]:
+        if acc_id not in self.settings.get("accounts", {}): return {"status": "error", "message": "Unknown account"}
         
-        for rec, _ in filtered:
-            for t in rec.transactions:
-                trans_count += 1
-                if t.amount > 0: total_income += t.amount
-                elif t.amount < 0:
-                    total_expense += t.amount
-                    tag_key = ", ".join(sorted(t.tags)) if t.tags else "Untagged"
-                    tag_spending[tag_key] += abs(t.amount)
-                    
-        stats_out = {
-            "record_count": trans_count,
-            "total_income": round(total_income, 2),
-            "total_expense": round(total_expense, 2),
-            "net_savings": round(total_income + total_expense, 2),
-            "tag_breakdown": dict(sorted(tag_spending.items(), key=lambda x: x[1], reverse=True)[:15])
-        }
-        current_balance = round(sum(r.total_change for r in self.records.values()), 2)
-        
-        return {
-            "records": records_out,
-            "stats": stats_out,
-            "global_balance": current_balance
-        }
-
-    def export_csv(self, filter_query: str = "") -> dict:
         try:
-            filtered = self._get_filtered_records(filter_query)
+            filtered = self._get_filtered_records(acc_id, filter_query)
+            records_out = []
+            for rec, hist_bal in reversed(filtered):
+                d = rec.to_dict()
+                d['historical_balance'] = hist_bal
+                records_out.append(d)
+
+            total_income = 0
+            total_expense = 0
+            tag_spending = defaultdict(float)
+            trans_count = 0
+            
+            for rec, _ in filtered:
+                for t in rec.transactions:
+                    trans_count += 1
+                    if t.amount > 0: total_income += t.amount
+                    elif t.amount < 0:
+                        total_expense += t.amount
+                        tag_key = ", ".join(sorted(t.tags)) if t.tags else "Untagged"
+                        tag_spending[tag_key] += abs(t.amount)
+                        
+            stats_out = {
+                "record_count": trans_count,
+                "total_income": round(total_income, 2),
+                "total_expense": round(total_expense, 2),
+                "net_savings": round(total_income + total_expense, 2),
+                "tag_breakdown": dict(sorted(tag_spending.items(), key=lambda x: x[1], reverse=True)[:15])
+            }
+            current_balance = round(sum(r.total_change for r in self.records.get(acc_id, {}).values()), 2)
+            
+            return {
+                "status": "success",
+                "account_info": self.settings["accounts"][acc_id],
+                "records": records_out,
+                "stats": stats_out,
+                "global_balance": current_balance
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Data process error: {str(e)}"}
+
+    def export_csv(self, acc_id: str, filter_query: str = "") -> dict:
+        try:
+            filtered = self._get_filtered_records(acc_id, filter_query)
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(["Date", "Day", "Historical Balance", "Daily Net Change", "Total Income", "Total Expense", "Transactions (Amount [Tags])"])
